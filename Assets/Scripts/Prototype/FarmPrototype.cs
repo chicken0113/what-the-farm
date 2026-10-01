@@ -6,6 +6,7 @@ namespace WhatTheFarm.Prototype
     {
         private const float HalfSize = 13f;
         [SerializeField] private Material baseMaterial;
+        [SerializeField, Min(1)] private int inventorySlotCount = 12;
         private LocalFarmer player;
         private float messageUntil;
         private string message = "Pick up the hoe and till the soil first.";
@@ -118,7 +119,7 @@ namespace WhatTheFarm.Prototype
             eye.AddComponent<AudioListener>();
 
             player = farmer.AddComponent<LocalFarmer>();
-            player.Configure(this, camera);
+            player.Configure(this, camera, inventorySlotCount);
         }
 
         private void CreateBlock(string name, Vector3 position, Vector3 scale, Material material)
@@ -249,15 +250,22 @@ namespace WhatTheFarm.Prototype
             if (player == null)
                 return;
 
-            GUI.Box(new Rect(14f, 14f, 470f, 135f), "WHAT THE FARM - prototype");
+            GUI.Box(new Rect(14f, 14f, 490f, 157f), "WHAT THE FARM - prototype");
             GUI.Label(new Rect(28f, 42f, 420f, 22f), "WASD move  |  Mouse look  |  Shift sprint");
-            GUI.Label(new Rect(28f, 64f, 450f, 22f), "E pick up / plant on tilled plot  |  Q drop");
-            GUI.Label(new Rect(28f, 86f, 450f, 22f), "Left click: hoe to till / can to water / hit a crop");
-            GUI.Label(new Rect(28f, 108f, 450f, 22f), "Esc release mouse  |  Click Game view to resume");
+            GUI.Label(new Rect(28f, 64f, 460f, 22f), "E pick up / plant selected item  |  Q drop selected item");
+            GUI.Label(new Rect(28f, 86f, 460f, 22f), "1-9 / wheel: select hotbar  |  Tab: inventory");
+            GUI.Label(new Rect(28f, 108f, 460f, 22f), "Left click: hoe to till / can to water / hit a crop");
+            GUI.Label(new Rect(28f, 130f, 460f, 22f), "Esc release mouse  |  Click Game view to resume");
 
             string hand = player.HeldItem == null ? "Empty" :
                 $"{player.HeldItem.DisplayName} ({player.HeldItem.Value} gold)";
-            GUI.Box(new Rect(14f, Screen.height - 82f, 480f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
+            GUI.Box(new Rect(14f, 180f, 490f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
+
+            if (player.InventoryOpen)
+            {
+                player.DrawInventoryGUI();
+                return;
+            }
 
             if (player.TryLook(out RaycastHit hit))
             {
@@ -279,6 +287,7 @@ namespace WhatTheFarm.Prototype
             }
 
             GUI.Label(new Rect(Screen.width * 0.5f - 5f, Screen.height * 0.5f - 10f, 20f, 20f), "+");
+            player.DrawInventoryGUI();
         }
     }
 }

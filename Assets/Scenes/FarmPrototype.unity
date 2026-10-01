@@ -149,6 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.FarmPrototype
   baseMaterial: {fileID: 2100000, guid: c77926c56f3d71948be272851ef5046c, type: 2}
+  inventorySlotCount: 12
 --- !u!4 &628829474
 Transform:
   m_ObjectHideFlags: 0
