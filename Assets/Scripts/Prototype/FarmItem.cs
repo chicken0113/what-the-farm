@@ -7,6 +7,7 @@ namespace WhatTheFarm.Prototype
         Seed,
         Produce,
         Tool,
+        WateringCan,
         Curio
     }
 
@@ -26,6 +27,7 @@ namespace WhatTheFarm.Prototype
                     ItemKind.Seed => "Seed",
                     ItemKind.Produce => "Crop",
                     ItemKind.Tool => "Hoe",
+                    ItemKind.WateringCan => "Watering Can",
                     _ => "Stone"
                 };
                 return Generation > 0 ? $"{name} +{Generation}" : name;

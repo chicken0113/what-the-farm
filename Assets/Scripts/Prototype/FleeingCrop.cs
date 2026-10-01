@@ -5,6 +5,7 @@ namespace WhatTheFarm.Prototype
     public sealed class FleeingCrop : MonoBehaviour
     {
         private FarmPrototype world;
+        private FarmPlot plot;
         private ItemKind sourceKind;
         private int generation;
         private int baseValue;
@@ -17,14 +18,17 @@ namespace WhatTheFarm.Prototype
         private Renderer visual;
 
         public bool IsMature => growthProgress >= growthTime;
+        public bool IsWatered => plot != null && plot.IsWatered;
+        public FarmPlot Plot => plot;
         public int Generation => generation;
         public int Value => Mathf.RoundToInt(baseValue * Mathf.Pow(1.8f, generation));
         public float Health => health;
         public float MaxHealth => maxHealth;
 
-        public void Configure(FarmPrototype prototype, FarmItem source)
+        public void Configure(FarmPrototype prototype, FarmItem source, FarmPlot homePlot)
         {
             world = prototype;
+            plot = homePlot;
             sourceKind = source.Kind;
             generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
             baseValue = source.BaseValue;
@@ -40,6 +44,9 @@ namespace WhatTheFarm.Prototype
         {
             if (!IsMature)
             {
+                if (!IsWatered)
+                    return;
+
                 growthProgress = Mathf.Min(growthTime, growthProgress + Time.deltaTime);
                 float size = Mathf.Lerp(0.15f, 1f + generation * 0.16f, growthProgress / growthTime);
                 transform.localScale = Vector3.one * size;
@@ -88,9 +95,10 @@ namespace WhatTheFarm.Prototype
                 return;
             }
 
-            ItemKind resultKind = sourceKind == ItemKind.Tool ? ItemKind.Tool : ItemKind.Produce;
+            ItemKind resultKind = sourceKind == ItemKind.Seed ? ItemKind.Produce : sourceKind;
             world.CreateItem(resultKind, generation, baseValue, transform.position + Vector3.up * 0.5f);
             world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
+            plot.Clear(this);
             Destroy(gameObject);
         }
     }

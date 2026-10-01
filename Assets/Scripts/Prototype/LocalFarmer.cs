@@ -105,19 +105,23 @@ namespace WhatTheFarm.Prototype
                 if (rb != null)
                     rb.isKinematic = true;
                 item.transform.SetParent(view.transform, false);
-                world.SetMessage($"Holding {item.DisplayName}. Aim at soil and press E to plant.");
+                world.SetMessage($"Holding {item.DisplayName}. Aim at a tilled plot and press E to plant.");
             }
-            else if (hit.collider.GetComponent<SoilSurface>() != null)
+            else if (hit.collider.TryGetComponent(out FarmPlot plot))
             {
-                if (world.TryPlant(heldItem, hit.point))
+                if (world.TryPlant(heldItem, plot))
                 {
                     Destroy(heldItem.gameObject);
                     heldItem = null;
                 }
             }
+            else if (hit.collider.GetComponent<SoilSurface>() != null)
+            {
+                world.SetMessage("Till this soil with the hoe before planting.");
+            }
             else
             {
-                world.SetMessage("Aim at an empty patch of soil to plant.");
+                world.SetMessage("Aim at an empty tilled plot to plant.");
             }
         }
 
@@ -146,10 +150,29 @@ namespace WhatTheFarm.Prototype
                 return;
             nextSwingTime = Time.time + 0.42f;
 
-            if (TryLook(out RaycastHit hit) && hit.collider.TryGetComponent(out FleeingCrop crop))
+            if (!TryLook(out RaycastHit hit))
+                return;
+
+            if (hit.collider.TryGetComponent(out FleeingCrop crop))
             {
+                if (heldItem != null && heldItem.Kind == ItemKind.WateringCan && !crop.IsMature)
+                {
+                    world.TryWater(crop.Plot);
+                    return;
+                }
+
                 float damage = heldItem != null && heldItem.Kind == ItemKind.Tool ? 2f : 1f;
                 crop.TakeHit(damage);
+            }
+            else if (heldItem != null && heldItem.Kind == ItemKind.WateringCan &&
+                     hit.collider.TryGetComponent(out FarmPlot plot))
+            {
+                world.TryWater(plot);
+            }
+            else if (heldItem != null && heldItem.Kind == ItemKind.Tool &&
+                     hit.collider.GetComponent<SoilSurface>() != null)
+            {
+                world.TryTill(hit.point);
             }
         }
     }

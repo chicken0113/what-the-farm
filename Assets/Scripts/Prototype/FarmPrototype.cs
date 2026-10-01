@@ -8,10 +8,13 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Material baseMaterial;
         private LocalFarmer player;
         private float messageUntil;
-        private string message = "Pick up a seed, then plant it in the soil.";
+        private string message = "Pick up the hoe and till the soil first.";
         private Material soilMaterial;
+        private Material dryPlotMaterial;
+        private Material wetPlotMaterial;
         private Material seedMaterial;
         private Material toolMaterial;
+        private Material wateringCanMaterial;
         private Material curioMaterial;
         private Material cropMaterial;
 
@@ -26,19 +29,22 @@ namespace WhatTheFarm.Prototype
         private void Awake()
         {
             soilMaterial = MakeMaterial(new Color(0.32f, 0.22f, 0.13f));
+            dryPlotMaterial = MakeMaterial(new Color(0.18f, 0.10f, 0.06f));
+            wetPlotMaterial = MakeMaterial(new Color(0.15f, 0.22f, 0.31f));
             seedMaterial = MakeMaterial(new Color(0.91f, 0.75f, 0.27f));
             toolMaterial = MakeMaterial(new Color(0.52f, 0.72f, 0.84f));
+            wateringCanMaterial = MakeMaterial(new Color(0.18f, 0.68f, 0.93f));
             curioMaterial = MakeMaterial(new Color(0.62f, 0.57f, 0.76f));
             cropMaterial = MakeMaterial(new Color(0.27f, 0.77f, 0.33f));
 
             CreateArena();
             CreatePlayer();
-            CreateItem(ItemKind.Seed, 0, 10, new Vector3(-2f, 0.45f, -7f));
-            CreateItem(ItemKind.Seed, 0, 10, new Vector3(-1f, 0.45f, -7f));
+            CreateItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
+            CreateItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
             CreateItem(ItemKind.Seed, 0, 10, new Vector3(0f, 0.45f, -7f));
             CreateItem(ItemKind.Seed, 0, 10, new Vector3(1f, 0.45f, -7f));
-            CreateItem(ItemKind.Tool, 0, 16, new Vector3(2.4f, 0.55f, -7f));
-            CreateItem(ItemKind.Curio, 0, 6, new Vector3(3.7f, 0.55f, -7f));
+            CreateItem(ItemKind.Seed, 0, 10, new Vector3(2f, 0.45f, -7f));
+            CreateItem(ItemKind.Curio, 0, 6, new Vector3(3.2f, 0.55f, -7f));
         }
 
         private Material MakeMaterial(Color color)
@@ -116,6 +122,7 @@ namespace WhatTheFarm.Prototype
                 ItemKind.Seed => PrimitiveType.Sphere,
                 ItemKind.Produce => PrimitiveType.Capsule,
                 ItemKind.Tool => PrimitiveType.Cylinder,
+                ItemKind.WateringCan => PrimitiveType.Cylinder,
                 _ => PrimitiveType.Cube
             };
             GameObject instance = GameObject.CreatePrimitive(shape);
@@ -123,11 +130,14 @@ namespace WhatTheFarm.Prototype
             instance.transform.position = position;
             instance.transform.localScale = kind == ItemKind.Tool
                 ? new Vector3(0.17f, 0.5f, 0.17f)
+                : kind == ItemKind.WateringCan
+                    ? new Vector3(0.36f, 0.28f, 0.36f)
                 : Vector3.one * (kind == ItemKind.Produce ? 0.65f : 0.5f);
             instance.GetComponent<Renderer>().material = kind switch
             {
                 ItemKind.Seed => seedMaterial,
                 ItemKind.Tool => toolMaterial,
+                ItemKind.WateringCan => wateringCanMaterial,
                 ItemKind.Curio => curioMaterial,
                 _ => cropMaterial
             };
@@ -138,30 +148,74 @@ namespace WhatTheFarm.Prototype
             return item;
         }
 
-        public bool TryPlant(FarmItem item, Vector3 point)
+        public bool TryTill(Vector3 point)
         {
             if (Mathf.Abs(point.x) > ArenaHalfSize || Mathf.Abs(point.z) > ArenaHalfSize)
-                return false;
-
-            foreach (FleeingCrop crop in FindObjectsByType<FleeingCrop>(FindObjectsSortMode.None))
             {
-                Vector3 difference = crop.transform.position - point;
+                SetMessage("Till inside the fenced field.");
+                return false;
+            }
+
+            foreach (FarmPlot plot in FindObjectsByType<FarmPlot>(FindObjectsSortMode.None))
+            {
+                Vector3 difference = plot.transform.position - point;
                 difference.y = 0f;
-                if (difference.sqrMagnitude < 1.5f * 1.5f)
+                if (difference.sqrMagnitude < 1.7f * 1.7f)
                 {
-                    SetMessage("Choose a patch of soil farther from another crop.");
+                    SetMessage("Till farther from another plot.");
                     return false;
                 }
             }
 
+            GameObject patch = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            patch.name = "Tilled Plot";
+            patch.transform.SetParent(transform);
+            patch.transform.position = new Vector3(point.x, 0.045f, point.z);
+            patch.transform.localScale = new Vector3(1.45f, 0.09f, 1.45f);
+            patch.AddComponent<FarmPlot>().Configure(dryPlotMaterial, wetPlotMaterial);
+            SetMessage("Plot tilled. Pick up any item and press E over this plot to plant it.");
+            return true;
+        }
+
+        public bool TryPlant(FarmItem item, FarmPlot plot)
+        {
+            if (plot.IsOccupied)
+            {
+                SetMessage("This plot already has a crop.");
+                return false;
+            }
+
             GameObject plant = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             plant.transform.SetParent(transform);
-            plant.transform.position = point + Vector3.up * 0.15f;
+            plant.transform.position = plot.transform.position + Vector3.up * 0.105f;
             plant.GetComponent<Renderer>().material = new Material(cropMaterial);
             FleeingCrop cropComponent = plant.AddComponent<FleeingCrop>();
-            cropComponent.Configure(this, item);
-            SetMessage($"Planted {item.DisplayName}. Value: {cropComponent.Value} gold.");
+            plot.Plant(cropComponent);
+            cropComponent.Configure(this, item, plot);
+            SetMessage($"Planted {item.DisplayName}. Use the watering can to start growth.");
             return true;
+        }
+
+        public void TryWater(FarmPlot plot)
+        {
+            if (!plot.IsOccupied)
+            {
+                SetMessage("Plant an item here before watering.");
+                return;
+            }
+            if (plot.Crop.IsMature)
+            {
+                SetMessage("This crop is already mature. Chase it and harvest it.");
+                return;
+            }
+            if (plot.IsWatered)
+            {
+                SetMessage("This plot has already been watered.");
+                return;
+            }
+
+            plot.Water();
+            SetMessage("Watered! The crop is growing now.");
         }
 
         public void SetMessage(string text)
@@ -175,14 +229,15 @@ namespace WhatTheFarm.Prototype
             if (player == null)
                 return;
 
-            GUI.Box(new Rect(14f, 14f, 440f, 112f), "WHAT THE FARM - prototype");
+            GUI.Box(new Rect(14f, 14f, 470f, 135f), "WHAT THE FARM - prototype");
             GUI.Label(new Rect(28f, 42f, 420f, 22f), "WASD move  |  Mouse look  |  Shift sprint");
-            GUI.Label(new Rect(28f, 64f, 420f, 22f), "E pick up / plant  |  Q drop  |  Left click hit");
-            GUI.Label(new Rect(28f, 86f, 420f, 22f), "Esc release mouse  |  Click Game view to resume");
+            GUI.Label(new Rect(28f, 64f, 450f, 22f), "E pick up / plant on tilled plot  |  Q drop");
+            GUI.Label(new Rect(28f, 86f, 450f, 22f), "Left click: hoe to till / can to water / hit a crop");
+            GUI.Label(new Rect(28f, 108f, 450f, 22f), "Esc release mouse  |  Click Game view to resume");
 
             string hand = player.HeldItem == null ? "Empty" :
                 $"{player.HeldItem.DisplayName} ({player.HeldItem.Value} gold)";
-            GUI.Box(new Rect(14f, Screen.height - 82f, 440f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Grow, chase, hit, harvest, replant.")}");
+            GUI.Box(new Rect(14f, Screen.height - 82f, 480f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
 
             if (player.TryLook(out RaycastHit hit))
             {
@@ -192,9 +247,13 @@ namespace WhatTheFarm.Prototype
                 else if (hit.collider.TryGetComponent(out FleeingCrop crop))
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
-                        : "Growing crop";
-                else if (hit.collider.GetComponent<SoilSurface>() != null && player.HeldItem != null)
-                    target = "Press E to plant";
+                        : crop.IsWatered ? "Growing crop" : "Dry crop - water its plot";
+                else if (hit.collider.TryGetComponent(out FarmPlot plot))
+                    target = plot.IsOccupied
+                        ? (plot.IsWatered ? "Watered plot" : "Dry plot - water with can")
+                        : "Empty tilled plot - press E to plant";
+                else if (hit.collider.GetComponent<SoilSurface>() != null)
+                    target = "Untilled soil - use hoe";
                 if (target != null)
                     GUI.Box(new Rect(Screen.width * 0.5f - 130f, Screen.height * 0.5f + 20f, 260f, 30f), target);
             }
