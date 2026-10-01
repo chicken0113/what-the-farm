@@ -4,33 +4,67 @@ namespace WhatTheFarm.Prototype
 {
     public sealed class FarmPlot : MonoBehaviour
     {
+        private Material untilledMaterial;
         private Material dryMaterial;
         private Material wetMaterial;
         private Renderer visual;
         private FleeingCrop crop;
+        private GameObject[] furrows;
 
+        public bool IsTilled { get; private set; }
         public bool IsWatered { get; private set; }
         public bool IsOccupied => crop != null;
         public FleeingCrop Crop => crop;
 
-        public void Configure(Material dry, Material wet)
+        public void Configure(Material untilled, Material dry, Material wet, Material furrow)
         {
+            untilledMaterial = untilled;
             dryMaterial = dry;
             wetMaterial = wet;
             visual = GetComponent<Renderer>();
-            visual.sharedMaterial = dryMaterial;
+            visual.sharedMaterial = untilledMaterial;
+
+            furrows = new GameObject[3];
+            for (int index = 0; index < furrows.Length; index++)
+            {
+                GameObject row = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                row.name = "Tilled Furrow";
+                row.transform.SetParent(transform.parent);
+                row.transform.position = transform.position + new Vector3((index - 1) * 0.43f, 0.11f, 0f);
+                row.transform.localScale = new Vector3(0.13f, 0.055f, 1.38f);
+                row.GetComponent<Renderer>().sharedMaterial = furrow;
+                row.GetComponent<Collider>().enabled = false;
+                row.SetActive(false);
+                furrows[index] = row;
+            }
         }
 
-        public void Plant(FleeingCrop plantedCrop)
+        public bool Till()
         {
+            if (IsTilled)
+                return false;
+
+            IsTilled = true;
+            visual.sharedMaterial = dryMaterial;
+            foreach (GameObject row in furrows)
+                row.SetActive(true);
+            return true;
+        }
+
+        public bool Plant(FleeingCrop plantedCrop)
+        {
+            if (!IsTilled || IsOccupied || plantedCrop == null)
+                return false;
+
             crop = plantedCrop;
             IsWatered = false;
             visual.sharedMaterial = dryMaterial;
+            return true;
         }
 
         public void Water()
         {
-            if (!IsOccupied)
+            if (!IsTilled || !IsOccupied)
                 return;
 
             IsWatered = true;

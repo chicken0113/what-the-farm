@@ -170,9 +170,14 @@ namespace WhatTheFarm.Prototype
                 world.TryWater(plot);
             }
             else if (heldItem != null && heldItem.Kind == ItemKind.Tool &&
+                     hit.collider.TryGetComponent(out FarmPlot plotToTill))
+            {
+                world.TryTill(plotToTill);
+            }
+            else if (heldItem != null && heldItem.Kind == ItemKind.Tool &&
                      hit.collider.GetComponent<SoilSurface>() != null)
             {
-                world.TryTill(hit.point);
+                world.SetMessage("Aim at a green plot to till it.");
             }
         }
     }
