@@ -6,7 +6,31 @@ Unity 6 기반 3D 게임 프로젝트입니다. 기본 3D 템플릿과 Universal
 
 1. Unity Hub에서 이 폴더를 **Add project**로 등록합니다.
 2. Unity **6000.3.25f1**로 엽니다. 첫 실행 시 패키지 가져오기에 시간이 걸릴 수 있습니다.
-3. `Assets/Scenes/FarmPrototype.unity`를 열고 **Play**를 누르면 첫 시제품을 플레이할 수 있습니다.
+3. `Assets/Scenes/FirstFarm.unity`를 열고 **Play**를 누르면 편집 가능한 첫 농장 맵을 플레이할 수 있습니다. 기존 `FarmPrototype.unity`는 기능 확인용으로 남아 있습니다.
+
+## 첫 맵 배치하기
+
+`Assets/Prefabs/Blockout`의 프리팹을 Project 창에서 Scene 창으로 드래그해 배치합니다. 첫 맵에는 기본 지면, 20개의 실제 농사 밭, 물가, 다리, 상점과 판매소, 지역 출구를 배치했습니다. 도형의 색과 모양은 배치 용도를 구분하기 위한 임시 표현입니다.
+
+| 프리팹 | 구분 / 용도 |
+| --- | --- |
+| Ground_Block | 회녹색 지면. 기본 크기 4m × 4m |
+| Path_Block | 베이지색 길. 기본 크기 2m × 2m |
+| FarmPlot_Block | 초록색 미경작 밭. 괭이로 갈기, 심기, 물 주기 가능 |
+| Water_Block | 파란색 물가 표시. 이동을 막지 않음 |
+| Bridge_Block | 갈색 다리 바닥 |
+| Fence_Block | 갈색 울타리. 기본 길이 2m |
+| Rock_Block / Tree_Block | 회색 바위 / 짙은 초록색 나무 장애물 |
+| Shop_Block / Sell_Block | 노란 상점 / 주황 판매소 위치 표시 |
+| RegionExit_Block | 보라색 다음 지역 출구 위치 표시. 현재 닫혀 있음 |
+| SpawnMarker_Block | 청록색 시작 위치 표시 |
+
+- Play를 끈 상태에서 이동·회전·크기를 조절하고 씬을 저장합니다. 일반 블록의 원점은 바닥 기준이며, 밭은 중심 기준입니다. 밭의 기본 Y 위치는 `0.09`입니다.
+- `FirstFarm`에 배치된 시작 위치 표시를 옮기면 플레이어 시작 위치도 바뀝니다. 다른 표시를 사용하려면 **Farm Prototype > Player Spawn Point**에 해당 Transform을 연결합니다.
+- **Farm Prototype > Inventory Slot Count**에서 인벤토리 칸 수를 조절합니다.
+- 상점·판매소·물가·지역 출구는 배치용 표시입니다. 거래, 물 보충, 지역 이동 기능은 아직 연결되지 않았습니다.
+- 현재 작물 이동 범위는 중심 기준 X/Z ±12.2m입니다. 첫 맵 크기는 이 범위에 맞춰 26m × 26m로 잡았습니다.
+- `What The Farm > Create First Farm Blockout` 메뉴로 초기 배치를 다시 생성할 수 있습니다. 재생성은 첫 맵과 프리팹을 덮어쓰므로 편집한 맵은 다른 이름으로 저장해 보관하세요.
 
 ## 시제품 조작
 

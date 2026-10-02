@@ -4,12 +4,18 @@ namespace WhatTheFarm.Prototype
 {
     public sealed class FarmPlot : MonoBehaviour
     {
-        private Material untilledMaterial;
-        private Material dryMaterial;
-        private Material wetMaterial;
-        private Renderer visual;
+        [SerializeField] private Material untilledMaterial;
+        [SerializeField] private Material dryMaterial;
+        [SerializeField] private Material wetMaterial;
+        [SerializeField] private Renderer visual;
         private FleeingCrop crop;
-        private GameObject[] furrows;
+        [SerializeField] private GameObject[] furrows;
+
+        private void Awake()
+        {
+            if (visual != null && untilledMaterial != null)
+                visual.sharedMaterial = untilledMaterial;
+        }
 
         public bool IsTilled { get; private set; }
         public bool IsWatered { get; private set; }
@@ -29,9 +35,9 @@ namespace WhatTheFarm.Prototype
             {
                 GameObject row = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 row.name = "Tilled Furrow";
-                row.transform.SetParent(transform.parent);
                 row.transform.position = transform.position + new Vector3((index - 1) * 0.43f, 0.11f, 0f);
                 row.transform.localScale = new Vector3(0.13f, 0.055f, 1.38f);
+                row.transform.SetParent(transform, true);
                 row.GetComponent<Renderer>().sharedMaterial = furrow;
                 row.GetComponent<Collider>().enabled = false;
                 row.SetActive(false);

@@ -7,6 +7,11 @@ namespace WhatTheFarm.Prototype
         private const float HalfSize = 13f;
         [SerializeField] private Material baseMaterial;
         [SerializeField, Min(1)] private int inventorySlotCount = 12;
+        [SerializeField] private bool buildArenaAtRuntime = true;
+        [SerializeField] private Transform playerSpawnPoint;
+
+        public void UseSceneMap() => buildArenaAtRuntime = false;
+        public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
         private LocalFarmer player;
         private float messageUntil;
         private string message = "Pick up the hoe and till the soil first.";
@@ -42,7 +47,8 @@ namespace WhatTheFarm.Prototype
             curioMaterial = MakeMaterial(new Color(0.62f, 0.57f, 0.76f));
             cropMaterial = MakeMaterial(new Color(0.27f, 0.77f, 0.33f));
 
-            CreateArena();
+            if (buildArenaAtRuntime)
+                CreateArena();
             CreatePlayer();
             CreateItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
             CreateItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
@@ -103,7 +109,9 @@ namespace WhatTheFarm.Prototype
         {
             GameObject farmer = new GameObject("Local Farmer");
             farmer.transform.SetParent(transform);
-            farmer.transform.position = new Vector3(0f, 0.1f, -9.5f);
+            farmer.transform.position = playerSpawnPoint != null
+                ? playerSpawnPoint.position + Vector3.up * .1f
+                : new Vector3(0f, 0.1f, -9.5f);
             CharacterController body = farmer.AddComponent<CharacterController>();
             body.height = 1.8f;
             body.radius = 0.35f;
