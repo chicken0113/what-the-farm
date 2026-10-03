@@ -140,6 +140,9 @@ public static class FirstFarmMapBuilder
         var sun = new GameObject("Sun").AddComponent<Light>();
         sun.type = LightType.Directional; sun.intensity = 1.5f;
         sun.transform.rotation = Quaternion.Euler(55, -35, 0);
+        PlantGrowthBuilder.ConfigureWorld(gameplay);
+        foreach (var ground in UnityEngine.Object.FindObjectsByType<SoilSurface>(FindObjectsSortMode.None))
+            PlantGrowthBuilder.ConfigureGround(ground, sun);
         RenderSettings.ambientLight = new Color(.65f, .72f, .79f);
         EditorSceneManager.SaveScene(scene, ScenePath);
         var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };

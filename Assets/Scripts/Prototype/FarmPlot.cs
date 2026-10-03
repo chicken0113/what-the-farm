@@ -8,8 +8,22 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Material wetMaterial;
         [SerializeField] private Renderer visual;
         private readonly System.Collections.Generic.List<FleeingCrop> crops = new();
+        private SoilSurface surface;
+        [SerializeField, Range(0, 100)] private float waterAmount;
+        private bool growthStarted;
+        public float WaterAmount => Mathf.Clamp(waterAmount, 0, 100);
+        public bool GrowthStarted => growthStarted;
+        public SoilType SoilType => surface != null ? surface.Type : null;
+        public float GetLight(Vector3 point, Transform plant = null) => surface != null ? surface.GetLight(point, plant) : 80;
+        public void BindSurface(SoilSurface soil)
+        {
+            surface = soil;
+            waterAmount = soil.InitialWaterAmount;
+            growthStarted = waterAmount > 0;
+            RefreshWaterVisual();
+        }
         public bool IsTilled { get; private set; }
-        public bool IsWatered { get; private set; }
+        public bool IsWatered => WaterAmount > 0;
         public bool IsOccupied => crops.Count > 0;
         public bool Contains(FleeingCrop crop) => crops.Contains(crop);
         public bool ContainsPoint(Vector3 point) =>
@@ -45,13 +59,19 @@ namespace WhatTheFarm.Prototype
             return true;
         }
 
-        public void Water()
+        public void Water(float amount = 100)
         {
             if (!IsTilled || !IsOccupied)
                 return;
 
-            IsWatered = true;
-            visual.sharedMaterial = wetMaterial;
+            waterAmount = Mathf.Clamp(waterAmount + Mathf.Max(0, amount), 0, 100);
+            if (amount > 0) growthStarted = true;
+            RefreshWaterVisual();
+        }
+
+        private void RefreshWaterVisual()
+        {
+            if (visual != null) visual.sharedMaterial = IsWatered ? wetMaterial : dryMaterial;
         }
 
         public void Clear(FleeingCrop harvestedCrop)
@@ -61,8 +81,9 @@ namespace WhatTheFarm.Prototype
 
             if (!IsOccupied)
             {
-                IsWatered = false;
-                visual.sharedMaterial = dryMaterial;
+                waterAmount = surface != null ? surface.InitialWaterAmount : 0;
+                growthStarted = waterAmount > 0;
+                RefreshWaterVisual();
             }
         }
     }

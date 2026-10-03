@@ -11,6 +11,27 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Transform playerSpawnPoint;
         [SerializeField, Min(.1f)] private float tillingRadius = .8f;
         [SerializeField, Min(0)] private int startingGold;
+        [SerializeField, Range(1, 100)] private float waterPerUse = 25;
+        [SerializeField] private PlantGrowthProfile defaultGrowthProfile;
+        [SerializeField] private SoilType defaultSoilType;
+        [System.Serializable]
+        public sealed class GrowthBinding
+        {
+            public ItemKind kind;
+            public PlantGrowthProfile profile;
+        }
+        [SerializeField] private GrowthBinding[] growthProfiles = System.Array.Empty<GrowthBinding>();
+        public void SetGrowthDefaults(PlantGrowthProfile fallback, SoilType soil, GrowthBinding[] bindings)
+        {
+            defaultGrowthProfile = fallback; defaultSoilType = soil; growthProfiles = bindings;
+        }
+        private PlantGrowthProfile ProfileFor(ItemKind kind)
+        {
+            if (growthProfiles != null)
+                foreach (GrowthBinding binding in growthProfiles)
+                    if (binding != null && binding.kind == kind && binding.profile != null) return binding.profile;
+            return defaultGrowthProfile;
+        }
         public long Gold { get; private set; }
         private string dialogueSpeaker;
         private string dialogueText;
@@ -89,7 +110,8 @@ namespace WhatTheFarm.Prototype
             soil.transform.SetParent(transform);
             soil.transform.localScale = Vector3.one * (HalfSize * 2f / 10f);
             soil.GetComponent<Renderer>().material = soilMaterial;
-            soil.AddComponent<SoilSurface>();
+            var surface = soil.AddComponent<SoilSurface>();
+            surface.SetEnvironment(defaultSoilType, 80);
 
             Material fenceMaterial = MakeMaterial(new Color(0.47f, 0.34f, 0.2f));
             CreateBlock("North Fence", new Vector3(0f, 0.6f, HalfSize),
@@ -107,6 +129,7 @@ namespace WhatTheFarm.Prototype
             Light light = sun.AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = 1.5f;
+            surface.SetEnvironment(defaultSoilType, 80, 0, light);
             RenderSettings.ambientLight = new Color(0.65f, 0.72f, 0.79f);
         }
 
@@ -150,7 +173,8 @@ namespace WhatTheFarm.Prototype
             FarmItem item = CreateItem(kind, generation, baseValue, position);
             item.SetStockRefill(() =>
             {
-                if (this != null) CreateRestockingItem(kind, generation, baseValue, position);
+                if (this != null)
+                    CreateRestockingItem(kind, generation, baseValue, position).SetGrowthProfile(item.GrowthProfile);
             });
             return item;
         }
@@ -186,6 +210,7 @@ namespace WhatTheFarm.Prototype
             body.mass = 0.5f;
             FarmItem item = instance.AddComponent<FarmItem>();
             item.Configure(kind, generation, baseValue);
+            item.SetGrowthProfile(ProfileFor(kind));
             return item;
         }
 
@@ -219,6 +244,7 @@ namespace WhatTheFarm.Prototype
                 SetMessage("This tilled area already has a plant. Use an empty area.");
                 return false;
             }
+            if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             EnsureMaterials();
             Vector3 size = item.transform.lossyScale;
             GameObject plant = Instantiate(item.gameObject);
@@ -268,14 +294,14 @@ namespace WhatTheFarm.Prototype
                 SetMessage("Plant an item here before watering.");
                 return;
             }
-            if (plot.IsWatered)
+            if (plot.WaterAmount >= 100)
             {
-                SetMessage("This plot has already been watered.");
+                SetMessage("Water amount is already 100.");
                 return;
             }
 
-            plot.Water();
-            SetMessage("Watered! The crop is growing now.");
+            plot.Water(waterPerUse);
+            SetMessage($"Water amount: {plot.WaterAmount:0}/100. Water again to increase it.");
         }
 
         public void SetMessage(string text)
@@ -324,7 +350,7 @@ namespace WhatTheFarm.Prototype
                 else if (crop != null)
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
-                        : crop.IsWatered ? "Growing crop" : "Dry crop - water its plot";
+                        : $"Growing - size rate {crop.GrowthRatePercent:0}% | water {crop.Plot.WaterAmount:0}/100";
                 else if (npc != null)
                     target = $"{npc.DisplayName} - E talk / Q throw to sell";
                 else if (hit.collider.TryGetComponent(out SoilSurface soil))
@@ -335,7 +361,7 @@ namespace WhatTheFarm.Prototype
                         : "Tilled ground - press E to plant";
                 }
                 if (target != null)
-                    GUI.Box(new Rect(Screen.width * 0.5f - 130f, Screen.height * 0.5f + 20f, 260f, 30f), target);
+                    GUI.Box(new Rect(Screen.width * 0.5f - 180f, Screen.height * 0.5f + 20f, 360f, 36f), target);
             }
 
             GUI.Label(new Rect(Screen.width * 0.5f - 5f, Screen.height * 0.5f - 10f, 20f, 20f), "+");

@@ -13,9 +13,15 @@ namespace WhatTheFarm.Prototype
 
     public sealed class FarmItem : MonoBehaviour
     {
-        public ItemKind Kind { get; private set; }
-        public int Generation { get; private set; }
-        public int BaseValue { get; private set; }
+        [SerializeField] private ItemKind kind = ItemKind.Curio;
+        [SerializeField, Min(0)] private int generation;
+        [SerializeField, Min(0)] private int baseValue = 10;
+        [SerializeField] private PlantGrowthProfile growthProfile;
+        public ItemKind Kind => kind;
+        public int Generation => generation;
+        public int BaseValue => baseValue;
+        public PlantGrowthProfile GrowthProfile => growthProfile;
+        public void SetGrowthProfile(PlantGrowthProfile profile) => growthProfile = profile;
         public int Value => Mathf.RoundToInt(BaseValue * Mathf.Pow(1.8f, Generation));
         public bool WasThrown { get; private set; }
         public bool IsSold { get; private set; }
@@ -60,9 +66,9 @@ namespace WhatTheFarm.Prototype
 
         public void Configure(ItemKind kind, int generation, int baseValue)
         {
-            Kind = kind;
-            Generation = generation;
-            BaseValue = baseValue;
+            this.kind = kind;
+            this.generation = generation;
+            this.baseValue = baseValue;
             gameObject.name = DisplayName;
         }
     }

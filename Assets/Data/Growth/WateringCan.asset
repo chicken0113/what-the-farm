@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c0dfce6804b94e44ae0a109f0d4d906, type: 3}
+  m_Name: WateringCan
+  m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.PlantGrowthProfile
+  baseRatePercent: 100
+  requireWaterToStart: 1
+  growthSeconds: 4
+  secondsPerGeneration: 1
+  matureSizeMultiplier: 2
+  sizePerGeneration: 0.32
+  useLightCondition: 1
+  minLight: 20
+  maxLight: 70
+  lightBonusPercent: 20
+  useWaterCondition: 1
+  minWater: 70
+  maxWater: 100
+  waterBonusPercent: 35
+  useSoilCondition: 1
+  preferredSoils:
+  - {fileID: 11400000, guid: 3d620b3bd8a61ea44841338cb9b9eccc, type: 2}
+  soilBonusPercent: 25

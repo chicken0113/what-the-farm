@@ -22,6 +22,10 @@ namespace WhatTheFarm.Prototype
         private float baseOffset;
         private bool removed;
         private float groundHeight;
+        [SerializeField] private PlantGrowthProfile growthProfile;
+        [SerializeField] private float growthRatePercent = 100;
+        public PlantGrowthProfile GrowthProfile => growthProfile;
+        public float GrowthRatePercent => growthRatePercent;
         public bool IsPlanted => !removed && plot != null && plot.Contains(this);
 
         public bool IsMature => growthProgress >= growthTime;
@@ -42,7 +46,10 @@ namespace WhatTheFarm.Prototype
             sourceKind = source.Kind;
             generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
             baseValue = source.BaseValue;
-            growthTime = Mathf.Max(1.5f, 4f + generation);
+            growthProfile = source.GrowthProfile;
+            growthTime = growthProfile != null
+                ? Mathf.Max(.1f, growthProfile.growthSeconds + generation * growthProfile.secondsPerGeneration)
+                : Mathf.Max(1.5f, 4f + generation);
             maxHealth = 3f + generation * 2f;
             health = maxHealth;
             visuals = GetComponentsInChildren<Renderer>();
@@ -98,9 +105,17 @@ namespace WhatTheFarm.Prototype
 
         public void Grow(float elapsed)
         {
-            if (!IsPlanted || !IsWatered || IsMature || elapsed <= 0) return;
+            if (!IsPlanted || IsMature || elapsed <= 0) return;
+            growthRatePercent = growthProfile != null
+                ? growthProfile.Evaluate(plot.GetLight(transform.position, transform), plot.WaterAmount, plot.SoilType)
+                : 100;
+            if ((growthProfile == null || growthProfile.requireWaterToStart) && !plot.GrowthStarted) return;
             growthProgress = Mathf.Min(growthTime, growthProgress + elapsed);
-            float size = Mathf.Lerp(1f, 2f + generation * .32f, growthProgress / growthTime);
+            float baseSize = growthProfile != null
+                ? growthProfile.matureSizeMultiplier + generation * growthProfile.sizePerGeneration
+                : 2f + generation * .32f;
+            float finalSize = Mathf.Max(1, baseSize * growthRatePercent / 100);
+            float size = Mathf.Lerp(1f, finalSize, growthProgress / growthTime);
             transform.localScale = initialScale * size;
             Vector3 position = transform.position;
             position.y = groundHeight + baseOffset * size;
@@ -149,11 +164,13 @@ namespace WhatTheFarm.Prototype
             }
 
             ItemKind resultKind = sourceKind == ItemKind.Seed ? ItemKind.Produce : sourceKind;
-            world.CreateItem(resultKind, generation, baseValue, transform.position + Vector3.up * 0.5f);
+            FarmItem harvested = world.CreateItem(resultKind, generation, baseValue, transform.position + Vector3.up * 0.5f);
+            harvested.SetGrowthProfile(growthProfile);
             world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
             removed = true;
             ReleaseSoil();
-            Destroy(gameObject);
+            if (Application.isPlaying) Destroy(gameObject);
+            else DestroyImmediate(gameObject);
         }
     }
 }

@@ -4,6 +4,35 @@ namespace WhatTheFarm.Prototype
 {
     public sealed class SoilSurface : MonoBehaviour
     {
+        [SerializeField] private SoilType soilType;
+        [SerializeField, Range(0, 100)] private float lightAmount = 80;
+        [SerializeField, Range(0, 100)] private float initialWaterAmount;
+        [SerializeField] private Light sunlight;
+        [SerializeField, Min(.01f)] private float fullSunIntensity = 1.5f;
+        [SerializeField, Range(0, 100)] private float shadeLightAmount = 20;
+        public SoilType Type => soilType;
+        public float InitialWaterAmount => Mathf.Clamp(initialWaterAmount, 0, 100);
+        public void SetEnvironment(SoilType type, float light, float water = 0, Light sun = null)
+        {
+            soilType = type; lightAmount = Mathf.Clamp(light, 0, 100);
+            initialWaterAmount = Mathf.Clamp(water, 0, 100); sunlight = sun;
+        }
+
+        public float GetLight(Vector3 point, Transform growingObject = null)
+        {
+            if (sunlight == null) return Mathf.Clamp(lightAmount, 0, 100);
+            if (!sunlight.enabled || !sunlight.gameObject.activeInHierarchy) return shadeLightAmount;
+            Vector3 direction = -sunlight.transform.forward;
+            if (sunlight.type != LightType.Directional) return Mathf.Clamp(lightAmount, 0, 100);
+            foreach (RaycastHit hit in Physics.RaycastAll(point + Vector3.up * .05f, direction, 100, ~0,
+                QueryTriggerInteraction.Ignore))
+            {
+                if (growingObject != null && hit.collider.transform.IsChildOf(growingObject)) continue;
+                if (hit.collider.GetComponentInParent<FarmItem>() != null) continue;
+                return shadeLightAmount;
+            }
+            return Mathf.Clamp(lightAmount * sunlight.intensity / Mathf.Max(.01f, fullSunIntensity), 0, 100);
+        }
         private readonly System.Collections.Generic.List<FarmPlot> areas = new();
 
         public FarmPlot FindPlot(Vector3 point)
@@ -60,6 +89,7 @@ namespace WhatTheFarm.Prototype
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             FarmPlot plot = root.AddComponent<FarmPlot>();
             plot.ConfigureArea(renderer, dry, wet, radius);
+            plot.BindSurface(this);
             areas.Add(plot);
             return plot;
         }

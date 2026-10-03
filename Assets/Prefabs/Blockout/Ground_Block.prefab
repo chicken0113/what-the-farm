@@ -157,3 +157,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4fcf75dc6cc2b540a29f28c18d62201, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.SoilSurface
+  soilType: {fileID: 11400000, guid: 7f1581d55a7fe334ebc7984c48245636, type: 2}
+  lightAmount: 80
+  initialWaterAmount: 0
+  sunlight: {fileID: 0}
+  fullSunIntensity: 1.5
+  shadeLightAmount: 20

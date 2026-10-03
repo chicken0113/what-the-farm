@@ -278,6 +278,20 @@ MonoBehaviour:
   playerSpawnPoint: {fileID: 759393485}
   tillingRadius: 0.8
   startingGold: 0
+  waterPerUse: 25
+  defaultGrowthProfile: {fileID: 11400000, guid: 9164ef26b6f185e4994813ed8141dadb, type: 2}
+  defaultSoilType: {fileID: 11400000, guid: 7f1581d55a7fe334ebc7984c48245636, type: 2}
+  growthProfiles:
+  - kind: 0
+    profile: {fileID: 11400000, guid: b727cc1ace156274cbf9704b94e17cc0, type: 2}
+  - kind: 1
+    profile: {fileID: 11400000, guid: 95690222104eebc41854ce2b1de55aab, type: 2}
+  - kind: 2
+    profile: {fileID: 11400000, guid: 1d97cf05fd4c0f24487b68c04374f59f, type: 2}
+  - kind: 3
+    profile: {fileID: 11400000, guid: 2986fc0a085489a459c32425e8e943e5, type: 2}
+  - kind: 4
+    profile: {fileID: 11400000, guid: 2159b089ee8c9e440bf230101c2d885f, type: 2}
 --- !u!4 &170940807
 Transform:
   m_ObjectHideFlags: 0
@@ -822,6 +836,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6834877389058209741, guid: 8e564b219fbb3be429bb832680909586, type: 3}
+      propertyPath: soilType
+      value: 
+      objectReference: {fileID: 11400000, guid: 7f1581d55a7fe334ebc7984c48245636, type: 2}
+    - target: {fileID: 6834877389058209741, guid: 8e564b219fbb3be429bb832680909586, type: 3}
+      propertyPath: sunlight
+      value: 
+      objectReference: {fileID: 1046172478}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
