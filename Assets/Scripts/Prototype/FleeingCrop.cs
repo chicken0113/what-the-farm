@@ -15,10 +15,13 @@ namespace WhatTheFarm.Prototype
         private float maxHealth;
         private float nextFleeDirectionTime;
         private Vector3 fleeDirection;
-        private Renderer visual;
+        private Renderer[] visuals;
+        private readonly System.Collections.Generic.List<Material> ownedMaterials = new();
+        private Collider[] bodies;
+        private Vector3 initialScale;
+        private float baseOffset;
         private bool removed;
         private float groundHeight;
-        public Collider Body { get; private set; }
         public bool IsPlanted => !removed && plot != null && plot.Contains(this);
 
         public bool IsMature => growthProgress >= growthTime;
@@ -29,20 +32,39 @@ namespace WhatTheFarm.Prototype
         public float Health => health;
         public float MaxHealth => maxHealth;
 
-        public void Configure(FarmPrototype prototype, FarmItem source, FarmPlot homePlot)
+        public void Configure(FarmPrototype prototype, FarmItem source, FarmPlot homePlot, float soilHeight)
         {
             world = prototype;
             plot = homePlot;
-            groundHeight = transform.position.y - .15f;
-            Body = GetComponent<Collider>();
+            groundHeight = soilHeight;
+            initialScale = transform.localScale;
+            bodies = GetComponentsInChildren<Collider>();
             sourceKind = source.Kind;
             generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
             baseValue = source.BaseValue;
             growthTime = Mathf.Max(1.5f, 4f + generation);
             maxHealth = 3f + generation * 2f;
             health = maxHealth;
-            visual = GetComponent<Renderer>();
-            transform.localScale = Vector3.one * 0.15f;
+            visuals = GetComponentsInChildren<Renderer>();
+            foreach (Renderer renderer in visuals)
+                ownedMaterials.AddRange(renderer.sharedMaterials);
+            Bounds bounds = new Bounds(transform.position, Vector3.zero);
+            bool found = false;
+            foreach (Renderer renderer in visuals)
+            {
+                if (!found) { bounds = renderer.bounds; found = true; }
+                else bounds.Encapsulate(renderer.bounds);
+            }
+            if (!found)
+                foreach (Collider body in bodies)
+                {
+                    if (!found) { bounds = body.bounds; found = true; }
+                    else bounds.Encapsulate(body.bounds);
+                }
+            baseOffset = transform.position.y - bounds.min.y;
+            Vector3 position = transform.position;
+            position.y = groundHeight + baseOffset;
+            transform.position = position;
             gameObject.name = $"Growing {source.DisplayName}";
             world.RegisterPlant(this);
         }
@@ -79,17 +101,19 @@ namespace WhatTheFarm.Prototype
         {
             if (!IsPlanted || !IsWatered || IsMature || elapsed <= 0) return;
             growthProgress = Mathf.Min(growthTime, growthProgress + elapsed);
-            float size = Mathf.Lerp(.15f, 1f + generation * .16f, growthProgress / growthTime);
-            transform.localScale = Vector3.one * size;
+            float size = Mathf.Lerp(1f, 2f + generation * .32f, growthProgress / growthTime);
+            transform.localScale = initialScale * size;
             Vector3 position = transform.position;
-            position.y = groundHeight + size;
+            position.y = groundHeight + baseOffset * size;
             transform.position = position;
             Physics.SyncTransforms();
             world.ResolveGrowthOverlap(this);
             if (IsMature)
             {
                 gameObject.name = $"Mature crop +{generation}";
-                visual.sharedMaterial.color = new Color(1f, .48f, .13f);
+                foreach (Renderer renderer in visuals)
+                    foreach (Material material in renderer.sharedMaterials)
+                        if (material != null) material.color = new Color(1f, .48f, .13f);
                 ReleaseSoil();
             }
         }
@@ -99,6 +123,18 @@ namespace WhatTheFarm.Prototype
             if (plot != null) plot.Clear(this);
             plot = null;
             if (world != null) world.UnregisterPlant(this);
+        }
+
+        public bool Overlaps(FleeingCrop other)
+        {
+            foreach (Collider body in bodies)
+                foreach (Collider neighbour in other.bodies)
+                    if (body != null && neighbour != null && body.enabled && neighbour.enabled &&
+                        !body.isTrigger && !neighbour.isTrigger &&
+                        Physics.ComputePenetration(body, body.transform.position, body.transform.rotation,
+                            neighbour, neighbour.transform.position, neighbour.transform.rotation, out _, out _))
+                        return true;
+            return false;
         }
 
         public void DestroyFromGrowth()
@@ -111,7 +147,16 @@ namespace WhatTheFarm.Prototype
             else DestroyImmediate(gameObject);
         }
 
-        private void OnDestroy() => ReleaseSoil();
+        private void OnDestroy()
+        {
+            ReleaseSoil();
+            foreach (Material material in ownedMaterials)
+            {
+                if (material == null) continue;
+                if (Application.isPlaying) Destroy(material);
+                else DestroyImmediate(material);
+            }
+        }
 
         public void TakeHit(float damage)
         {

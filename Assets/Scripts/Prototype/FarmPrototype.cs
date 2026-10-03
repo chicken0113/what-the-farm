@@ -31,8 +31,7 @@ namespace WhatTheFarm.Prototype
             {
                 FleeingCrop other = plantedCrops[index];
                 if (other == null || other == growing || !other.IsPlanted) continue;
-                if (Physics.ComputePenetration(growing.Body, growing.transform.position, growing.transform.rotation,
-                    other.Body, other.transform.position, other.transform.rotation, out _, out _))
+                if (growing.Overlaps(other))
                     other.DestroyFromGrowth();
             }
         }
@@ -155,6 +154,7 @@ namespace WhatTheFarm.Prototype
 
         public FarmItem CreateItem(ItemKind kind, int generation, int baseValue, Vector3 position)
         {
+            EnsureMaterials();
             PrimitiveType shape = kind switch
             {
                 ItemKind.Seed => PrimitiveType.Sphere,
@@ -212,17 +212,38 @@ namespace WhatTheFarm.Prototype
                 return false;
             }
             EnsureMaterials();
-            GameObject plant = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            plant.transform.SetParent(transform);
-            plant.transform.position = position + Vector3.up * 0.15f;
-            plant.GetComponent<Renderer>().material = new Material(cropMaterial);
+            Vector3 size = item.transform.lossyScale;
+            GameObject plant = Instantiate(item.gameObject);
+            plant.transform.SetParent(null);
+            plant.transform.rotation = Quaternion.identity;
+            plant.transform.localScale = size;
+            plant.transform.position = position;
+            plant.transform.SetParent(transform, true);
+            plant.SetActive(true);
+            foreach (Collider body in plant.GetComponentsInChildren<Collider>(true))
+                body.enabled = true;
+            foreach (Rigidbody body in plant.GetComponentsInChildren<Rigidbody>(true))
+            {
+                body.isKinematic = true;
+                body.useGravity = false;
+            }
+            foreach (Renderer renderer in plant.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] materials = renderer.sharedMaterials;
+                for (int index = 0; index < materials.Length; index++)
+                    if (materials[index] != null) materials[index] = new Material(materials[index]);
+                renderer.sharedMaterials = materials;
+            }
+            FarmItem plantedItem = plant.GetComponent<FarmItem>();
+            if (Application.isPlaying) Destroy(plantedItem);
+            else DestroyImmediate(plantedItem);
             FleeingCrop cropComponent = plant.AddComponent<FleeingCrop>();
             if (!plot.Plant(cropComponent))
             {
                 Destroy(plant);
                 return false;
             }
-            cropComponent.Configure(this, item, plot);
+            cropComponent.Configure(this, item, plot, position.y);
             SetMessage($"Planted {item.DisplayName}. Use the watering can to start growth.");
             return true;
         }
@@ -280,9 +301,11 @@ namespace WhatTheFarm.Prototype
             if (player.TryLook(out RaycastHit hit))
             {
                 string target = null;
-                if (hit.collider.TryGetComponent(out FarmItem item))
+                FarmItem item = hit.collider.GetComponentInParent<FarmItem>();
+                FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
+                if (item != null)
                     target = $"{item.DisplayName} - {item.Value} gold";
-                else if (hit.collider.TryGetComponent(out FleeingCrop crop))
+                else if (crop != null)
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
                         : crop.IsWatered ? "Growing crop" : "Dry crop - water its plot";

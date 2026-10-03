@@ -261,15 +261,29 @@ public static class FirstFarmMapBuilder
         var source = new GameObject("Plantable source").AddComponent<FarmItem>();
         FleeingCrop Plant(ItemKind kind, FarmPlot area, Vector3 point)
         {
-            source.Configure(kind, 0, 10);
+            UnityEngine.Object.DestroyImmediate(source.gameObject);
+            source = world.CreateItem(kind, 0, 10, origin + Vector3.right * 20);
+            var sourceSize = source.transform.lossyScale;
+            var sourceMesh = source.GetComponent<MeshFilter>().sharedMesh;
+            var sourceColor = source.GetComponent<Renderer>().sharedMaterial.color;
+            source.GetComponent<Collider>().enabled = false;
+            source.GetComponent<Rigidbody>().isKinematic = true;
             if (!world.TryPlant(source, area, point)) throw new InvalidOperationException("Free planting rejected.");
             var all = world.GetComponentsInChildren<FleeingCrop>();
             var crop = all[all.Length - 1];
-            if (Vector3.Distance(crop.transform.position, point + Vector3.up * .15f) > .001f)
-                throw new InvalidOperationException("Plant snapped away from aim point.");
+            if (Mathf.Abs(crop.transform.position.x - point.x) > .001f ||
+                Mathf.Abs(crop.transform.position.z - point.z) > .001f ||
+                Mathf.Abs(crop.GetComponent<Renderer>().bounds.min.y - point.y) > .001f)
+                throw new InvalidOperationException("Plant moved away from aim point or floated above soil.");
+            if (Vector3.Distance(crop.transform.lossyScale, sourceSize) > .001f ||
+                crop.GetComponent<MeshFilter>().sharedMesh != sourceMesh ||
+                crop.GetComponent<FarmItem>() != null || !crop.GetComponent<Collider>().enabled ||
+                crop.GetComponent<Renderer>().sharedMaterial.color != sourceColor)
+                throw new InvalidOperationException("Plant lost its original shape or size.");
             return crop;
         }
         var growing = Plant(ItemKind.Seed, plot, origin + Vector3.left * .4f);
+        Vector3 initialSize = growing.transform.localScale;
         var far = Plant(ItemKind.Seed, plot, origin + Vector3.right * .6f);
         var victims = new List<FleeingCrop>();
         foreach (ItemKind kind in Enum.GetValues(typeof(ItemKind)))
@@ -290,6 +304,9 @@ public static class FirstFarmMapBuilder
         growing.Grow(3);
         if (victims.Exists(crop => crop == null)) throw new InvalidOperationException("Dry plant destroyed neighbours.");
         plot.Water(); growing.Grow(3);
+        if (Vector3.Distance(growing.transform.localScale, initialSize * 1.75f) > .001f ||
+            Mathf.Abs(growing.GetComponent<Renderer>().bounds.min.y) > .001f)
+            throw new InvalidOperationException("Growth lost original proportions or soil alignment.");
         if (victims.Exists(crop => crop != null) || !growing.IsPlanted || !far.IsPlanted)
             throw new InvalidOperationException($"Growth overlap failed: remaining={victims.FindAll(crop => crop != null).Count}, grower={growing.IsPlanted}, distant={far.IsPlanted}.");
         if (scenery == null || loose == null || freeCrop == null || mature == null || ground == null)
@@ -315,8 +332,33 @@ public static class FirstFarmMapBuilder
         obstruction.transform.position = origin + new Vector3(.6f, .7f, 0);
         Physics.SyncTransforms();
         if (farmer.TryLookSoil(out _)) throw new InvalidOperationException("Planting aim passes through solid scenery.");
+        var compound = new GameObject("Compound item").AddComponent<FarmItem>();
+        compound.Configure(ItemKind.Tool, 0, 10);
+        compound.transform.localScale = new Vector3(.7f, 1.2f, .8f);
+        foreach (float x in new[] { -.3f, .3f })
+        {
+            var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.transform.SetParent(compound.transform, false);
+            part.transform.localPosition = new Vector3(x, .5f, 0);
+            part.transform.localScale = new Vector3(.2f, 1, .3f);
+            part.GetComponent<Renderer>().sharedMaterial = dry;
+            part.GetComponent<Collider>().enabled = false;
+        }
+        var compoundPlot = soil.Till(origin + Vector3.left * 4, .8f, dry, wet);
+        if (!world.TryPlant(compound, compoundPlot, compoundPlot.transform.position))
+            throw new InvalidOperationException("Compound model planting failed.");
+        var planted = world.GetComponentsInChildren<FleeingCrop>();
+        var compoundCrop = planted[planted.Length - 1];
+        if (compoundCrop.GetComponentsInChildren<Renderer>().Length != 2 ||
+            compoundCrop.GetComponentsInChildren<Collider>().Length != 2 ||
+            Vector3.Distance(compoundCrop.transform.lossyScale, compound.transform.lossyScale) > .001f)
+            throw new InvalidOperationException("Compound model or size was lost.");
+        compoundPlot.Water(); compoundCrop.Grow(1);
+        foreach (Renderer renderer in compoundCrop.GetComponentsInChildren<Renderer>())
+            if (Mathf.Abs(renderer.bounds.min.y) > .001f)
+                throw new InvalidOperationException("Compound model floats during growth.");
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        Debug.Log("Free planting and protected growth destruction validation passed.");
+        Debug.Log("Original shape/size, free planting and protected growth destruction validation passed.");
     }
 
     public static void CapturePreview()

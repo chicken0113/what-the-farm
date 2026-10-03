@@ -172,7 +172,7 @@ namespace WhatTheFarm.Prototype
                 view.transform.forward, 4f, ~0, QueryTriggerInteraction.Ignore))
             {
                 // Planting aims at soil behind crops; solid scenery still blocks the ray.
-                if (candidate.collider.GetComponent<FleeingCrop>() != null) continue;
+                if (candidate.collider.GetComponentInParent<FleeingCrop>() != null) continue;
                 if (candidate.distance >= nearest) continue;
                 nearest = candidate.distance;
                 hit = candidate;
@@ -189,7 +189,8 @@ namespace WhatTheFarm.Prototype
                 return;
             }
 
-            if (hit.collider.TryGetComponent(out FarmItem groundItem))
+            FarmItem groundItem = hit.collider.GetComponentInParent<FarmItem>();
+            if (groundItem != null)
             {
                 int slot = FindEmptySlot();
                 if (slot < 0)
@@ -198,7 +199,8 @@ namespace WhatTheFarm.Prototype
                     return;
                 }
 
-                groundItem.GetComponent<Collider>().enabled = false;
+                foreach (Collider collider in groundItem.GetComponentsInChildren<Collider>(true))
+                    collider.enabled = false;
                 Rigidbody rb = groundItem.GetComponent<Rigidbody>();
                 if (rb != null)
                     rb.isKinematic = true;
@@ -236,7 +238,8 @@ namespace WhatTheFarm.Prototype
             inventory[selectedSlot] = null;
             item.transform.SetParent(null);
             item.transform.position = transform.position + transform.forward * 1.2f + Vector3.up * 0.8f;
-            item.GetComponent<Collider>().enabled = true;
+            foreach (Collider collider in item.GetComponentsInChildren<Collider>(true))
+                collider.enabled = true;
             Rigidbody rb = item.GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -256,7 +259,8 @@ namespace WhatTheFarm.Prototype
                 return;
 
             FarmItem item = HeldItem;
-            if (hit.collider.TryGetComponent(out FleeingCrop crop))
+            FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
+            if (crop != null)
             {
                 if (item != null && item.Kind == ItemKind.WateringCan && !crop.IsMature)
                 {
