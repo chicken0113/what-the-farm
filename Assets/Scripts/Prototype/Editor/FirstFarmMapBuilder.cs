@@ -97,6 +97,7 @@ public static class FirstFarmMapBuilder
             Part(root, "Closed Exit (placeholder)", new Vector3(0, 1, .3f), new Vector3(3, 2, .15f), mats["Exit"]);
         });
         Save("SpawnMarker_Block", root => Part(root, "Spawn marker", new Vector3(0, .03f, 0), new Vector3(1, .06f, 1), mats["Spawn"], false));
+        prefabs["BuyerNPC"] = NpcMerchantBuilder.CreatePrefab();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var map = new GameObject("First Farm - editable blockout");
@@ -116,6 +117,7 @@ public static class FirstFarmMapBuilder
         Place("Bridge_Block", new Vector3(-8, 0, 0), null, 90);
         Place("Shop_Block", new Vector3(-9, 0, 9));
         Place("Sell_Block", new Vector3(9, 0, 9));
+        var buyer = Place("BuyerNPC", new Vector3(9, 0, 7.5f)).GetComponent<NpcMerchant>();
         Place("RegionExit_Block", new Vector3(0, 0, 12));
         var spawn = Place("SpawnMarker_Block", new Vector3(0, 0, -9.5f));
         foreach (Vector3 location in new[] { new Vector3(-10,0,-10), new Vector3(10,0,-10), new Vector3(-11,0,4), new Vector3(11,0,4) })
@@ -134,6 +136,7 @@ public static class FirstFarmMapBuilder
         gameplay.SetBaseMaterial(baseline);
         gameplay.UseSceneMap();
         gameplay.SetSpawnPoint(spawn.transform);
+        buyer.BindWorld(gameplay);
         var sun = new GameObject("Sun").AddComponent<Light>();
         sun.type = LightType.Directional; sun.intensity = 1.5f;
         sun.transform.rotation = Quaternion.Euler(55, -35, 0);

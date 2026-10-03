@@ -17,6 +17,7 @@ namespace WhatTheFarm.Prototype
         private float pitch;
         private float verticalSpeed;
         private float nextSwingTime;
+        [SerializeField, Min(1)] private float throwSpeed = 8f;
         private static readonly Key[] HotbarKeys =
         {
             Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
@@ -105,7 +106,7 @@ namespace WhatTheFarm.Prototype
             if (keyboard.eKey.wasPressedThisFrame)
                 Interact();
             if (keyboard.qKey.wasPressedThisFrame)
-                Drop();
+                ThrowSelectedItem();
             if (mouse.leftButton.wasPressedThisFrame)
                 Swing();
         }
@@ -190,6 +191,12 @@ namespace WhatTheFarm.Prototype
             }
 
             FarmItem groundItem = hit.collider.GetComponentInParent<FarmItem>();
+            NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
+            if (npc != null)
+            {
+                npc.Talk();
+                return;
+            }
             if (groundItem != null)
             {
                 int slot = FindEmptySlot();
@@ -204,6 +211,7 @@ namespace WhatTheFarm.Prototype
                 Rigidbody rb = groundItem.GetComponent<Rigidbody>();
                 if (rb != null)
                     rb.isKinematic = true;
+                groundItem.MarkHeld();
                 groundItem.transform.SetParent(view.transform, false);
                 inventory[slot] = groundItem;
                 RefreshHeldItem();
@@ -229,7 +237,7 @@ namespace WhatTheFarm.Prototype
                 world.SetMessage("Aim at an item to pick up or a tilled plot to plant.");
         }
 
-        private void Drop()
+        public void ThrowSelectedItem()
         {
             FarmItem item = HeldItem;
             if (item == null)
@@ -237,16 +245,19 @@ namespace WhatTheFarm.Prototype
 
             inventory[selectedSlot] = null;
             item.transform.SetParent(null);
-            item.transform.position = transform.position + transform.forward * 1.2f + Vector3.up * 0.8f;
+            item.transform.position = view.transform.position + view.transform.forward * .9f;
             foreach (Collider collider in item.GetComponentsInChildren<Collider>(true))
                 collider.enabled = true;
             Rigidbody rb = item.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 rb.isKinematic = false;
-                rb.AddForce(transform.forward * 2.5f, ForceMode.Impulse);
+                rb.useGravity = true;
+                rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                rb.linearVelocity = view.transform.forward * throwSpeed;
+                item.MarkThrown();
             }
-            world.SetMessage($"Dropped {item.DisplayName}.");
+            world.SetMessage($"Threw {item.DisplayName}. Throw to the buyer to sell it.");
         }
 
         private void Swing()

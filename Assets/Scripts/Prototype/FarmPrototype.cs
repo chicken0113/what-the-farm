@@ -10,6 +10,19 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private bool buildArenaAtRuntime = true;
         [SerializeField] private Transform playerSpawnPoint;
         [SerializeField, Min(.1f)] private float tillingRadius = .8f;
+        [SerializeField, Min(0)] private int startingGold;
+        public long Gold { get; private set; }
+        private string dialogueSpeaker;
+        private string dialogueText;
+        private float dialogueUntil;
+
+        public void AddGold(int amount) { if (amount > 0) Gold += amount; }
+        public void ShowDialogue(string speaker, string text, float seconds)
+        {
+            dialogueSpeaker = speaker;
+            dialogueText = text;
+            dialogueUntil = Time.time + seconds;
+        }
 
         public void UseSceneMap() => buildArenaAtRuntime = false;
         public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
@@ -56,6 +69,7 @@ namespace WhatTheFarm.Prototype
 
         private void Awake()
         {
+            Gold = startingGold;
             EnsureMaterials();
             if (buildArenaAtRuntime)
                 CreateArena();
@@ -283,7 +297,7 @@ namespace WhatTheFarm.Prototype
 
             GUI.Box(new Rect(14f, 14f, 490f, 157f), "WHAT THE FARM - prototype");
             GUI.Label(new Rect(28f, 42f, 420f, 22f), "WASD move  |  Mouse look  |  Shift sprint");
-            GUI.Label(new Rect(28f, 64f, 460f, 22f), "E pick up / plant selected item  |  Q drop selected item");
+            GUI.Label(new Rect(28f, 64f, 460f, 22f), "E pick up / plant / talk  |  Q throw selected item");
             GUI.Label(new Rect(28f, 86f, 460f, 22f), "1-9 / wheel: select hotbar  |  Tab: inventory");
             GUI.Label(new Rect(28f, 108f, 460f, 22f), "Left click: hoe to till / can to water / hit a crop");
             GUI.Label(new Rect(28f, 130f, 460f, 22f), "Esc release mouse  |  Click Game view to resume");
@@ -291,6 +305,13 @@ namespace WhatTheFarm.Prototype
             string hand = player.HeldItem == null ? "Empty" :
                 $"{player.HeldItem.DisplayName} ({player.HeldItem.Value} gold)";
             GUI.Box(new Rect(14f, 180f, 490f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
+            GUI.Box(new Rect(Screen.width - 190, 14, 176, 38), $"Gold: {Gold}");
+            if (Time.time < dialogueUntil)
+            {
+                float width = Mathf.Min(620, Screen.width - 28);
+                GUI.Box(new Rect((Screen.width - width) * .5f, Screen.height - 180, width, 90),
+                    $"{dialogueSpeaker}\n\n{dialogueText}");
+            }
 
             if (player.InventoryOpen)
             {
@@ -303,12 +324,15 @@ namespace WhatTheFarm.Prototype
                 string target = null;
                 FarmItem item = hit.collider.GetComponentInParent<FarmItem>();
                 FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
+                NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
                 if (item != null)
                     target = $"{item.DisplayName} - {item.Value} gold";
                 else if (crop != null)
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
                         : crop.IsWatered ? "Growing crop" : "Dry crop - water its plot";
+                else if (npc != null)
+                    target = $"{npc.DisplayName} - E talk / Q throw to sell";
                 else if (hit.collider.TryGetComponent(out SoilSurface soil))
                 {
                     FarmPlot plot = soil.FindPlot(hit.point);
