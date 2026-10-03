@@ -124,7 +124,23 @@ public static class PlantGrowthBuilder
         if (!crop.IsMature || Vector3.Distance(crop.transform.localScale, initialScale * 3) > .001f)
             throw new InvalidOperationException("150% did not produce 1.5 times the normal mature size.");
         source.SetGrowthProfile(null);
+        var grownObject = crop.gameObject;
+        var grownScale = crop.transform.lossyScale;
+        var grownMesh = crop.GetComponent<MeshFilter>().sharedMesh;
+        var grownBounds = crop.GetComponent<Renderer>().bounds.size;
         crop.TakeHit(100);
+        var drop = grownObject.GetComponent<FarmItem>();
+        if (drop == null || drop.Kind != ItemKind.Produce ||
+            drop.transform.lossyScale != grownScale || drop.GetComponent<MeshFilter>().sharedMesh != grownMesh ||
+            Vector3.Distance(drop.GetComponent<Renderer>().bounds.size, grownBounds) > .001f ||
+            drop.GetComponent<Rigidbody>().isKinematic || !drop.GetComponent<Rigidbody>().useGravity)
+            throw new InvalidOperationException("Harvest changed grown size/model or did not create a pickup.");
+        if (!world.TryPlant(drop, area, area.transform.position) ||
+            Vector3.Distance(world.GetComponentInChildren<FleeingCrop>().transform.lossyScale, grownScale) > .001f)
+            throw new InvalidOperationException("Replanting lost harvested size.");
+        var replanted = world.GetComponentInChildren<FleeingCrop>();
+        replanted.Grow(20);
+        UnityEngine.Object.DestroyImmediate(replanted.gameObject);
         var harvested = world.GetComponentsInChildren<FarmItem>();
         if (harvested[harvested.Length - 1].GrowthProfile != profile)
             throw new InvalidOperationException("Harvest lost the object's growth profile.");
@@ -157,6 +173,6 @@ public static class PlantGrowthBuilder
         UnityEngine.Object.DestroyImmediate(world.gameObject);
         UnityEngine.Object.DestroyImmediate(ground);
         UnityEngine.Object.DestroyImmediate(profile);
-        Debug.Log("Additive final size rates, environment changes, water quantity, any-item profiles and harvest inheritance validation passed.");
+        Debug.Log("Growth environment, harvest size/model preservation and replant size validation passed.");
     }
 }

@@ -27,6 +27,17 @@ namespace WhatTheFarm.Prototype
         public bool IsSold { get; private set; }
 
         private System.Action refillStock;
+        private readonly System.Collections.Generic.List<Material> ownedMaterials = new();
+        public void OwnMaterials(System.Collections.Generic.IEnumerable<Material> materials) => ownedMaterials.AddRange(materials);
+        private void OnDestroy()
+        {
+            foreach (var material in ownedMaterials)
+            {
+                if (material == null) continue;
+                if (Application.isPlaying) Destroy(material);
+                else DestroyImmediate(material);
+            }
+        }
         public void SetStockRefill(System.Action refill) => refillStock = refill;
 
         public void MarkHeld()

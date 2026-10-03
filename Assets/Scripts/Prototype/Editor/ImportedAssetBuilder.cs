@@ -156,7 +156,20 @@ public static class ImportedAssetBuilder
                 throw new InvalidOperationException("Imported item cannot be planted.");
             var crop = world.GetComponentsInChildren<FleeingCrop>()[^1];
             if (Mathf.Abs(BoundsOf(crop.gameObject).min.y) > .01f) throw new InvalidOperationException("Imported plant floats.");
-            plot.Water(50); crop.Grow(10); crop.TakeHit(999);
+            plot.Water(50); crop.Grow(10);
+            var grownObject = crop.gameObject;
+            var grownScale = crop.transform.lossyScale;
+            var grownSize = BoundsOf(grownObject).size;
+            crop.TakeHit(999);
+            var drop = grownObject.GetComponent<FarmItem>();
+            if (drop == null || drop.Kind != prefab.Kind || drop.transform.lossyScale != grownScale ||
+                Vector3.Distance(BoundsOf(drop.gameObject).size, grownSize) > .001f)
+                throw new InvalidOperationException("Imported harvested model lost its grown size.");
+            if (!world.TryPlant(drop, plot, point)) throw new InvalidOperationException("Harvested model could not be replanted.");
+            var replanted = world.GetComponentsInChildren<FleeingCrop>()[^1];
+            if (Vector3.Distance(replanted.transform.lossyScale, grownScale) > .001f)
+                throw new InvalidOperationException("Imported replant lost harvested size.");
+            plot.Water(50); replanted.Grow(20);
         }
         foreach (var renderer in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             foreach (var material in renderer.sharedMaterials)
@@ -165,5 +178,14 @@ public static class ImportedAssetBuilder
         Debug.Log("Imported model planting, growth, harvest and URP validation passed.");
         // Discard temporary validation plants.
         EditorSceneManager.OpenScene(scene.path);
+    }
+
+    public static void ValidateHarvestSize()
+    {
+        PlantGrowthBuilder.Validate();
+        Validate(AssetDatabase.LoadAssetAtPath<FarmItem>(Output + "/Hoe.prefab"),
+            AssetDatabase.LoadAssetAtPath<FarmItem>(Output + "/Stone.prefab"));
+        NpcMerchantBuilder.Validate();
+        Debug.Log("Harvest size validation passed.");
     }
 }

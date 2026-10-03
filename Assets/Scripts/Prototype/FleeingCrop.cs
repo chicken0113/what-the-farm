@@ -164,13 +164,24 @@ namespace WhatTheFarm.Prototype
             }
 
             ItemKind resultKind = sourceKind == ItemKind.Seed ? ItemKind.Produce : sourceKind;
-            FarmItem harvested = world.CreateItem(resultKind, generation, baseValue, transform.position + Vector3.up * 0.5f);
-            harvested.SetGrowthProfile(growthProfile);
-            world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
+            // Turn the grown model into a pickup so its size, mesh and child transforms survive harvest.
             removed = true;
             ReleaseSoil();
-            if (Application.isPlaying) Destroy(gameObject);
-            else DestroyImmediate(gameObject);
+            FarmItem harvested = gameObject.AddComponent<FarmItem>();
+            harvested.Configure(resultKind, generation, baseValue);
+            harvested.SetGrowthProfile(growthProfile);
+            harvested.OwnMaterials(ownedMaterials);
+            ownedMaterials.Clear();
+            transform.position += Vector3.up * .5f;
+            var rigidbody = GetComponent<Rigidbody>();
+            if (rigidbody == null) rigidbody = gameObject.AddComponent<Rigidbody>();
+            rigidbody.isKinematic = false;
+            rigidbody.useGravity = true;
+            rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            foreach (var collider in bodies) collider.enabled = true;
+            world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
+            if (Application.isPlaying) Destroy(this);
+            else DestroyImmediate(this);
         }
     }
 }
