@@ -190,22 +190,22 @@ namespace WhatTheFarm.Prototype
                 RefreshHeldItem();
                 world.SetMessage($"Picked up {groundItem.DisplayName} in slot {slot + 1}.");
             }
-            else if (hit.collider.TryGetComponent(out FarmPlot plot))
+            else if (hit.collider.TryGetComponent(out SoilSurface soil))
             {
+                if (hit.normal.y < .9f) return;
+                FarmPlot plot = soil.FindPlot(hit.point);
                 FarmItem item = HeldItem;
                 if (item == null)
                 {
                     world.SetMessage("Select an item in the hotbar before planting.");
                     return;
                 }
-                if (world.TryPlant(item, plot))
+                if (world.TryPlant(item, plot, hit.point))
                 {
                     inventory[selectedSlot] = null;
                     Destroy(item.gameObject);
                 }
             }
-            else if (hit.collider.GetComponent<SoilSurface>() != null)
-                world.SetMessage("Aim at a tilled plot to plant.");
             else
                 world.SetMessage("Aim at an item to pick up or a tilled plot to plant.");
         }
@@ -250,15 +250,18 @@ namespace WhatTheFarm.Prototype
                 float damage = item != null && item.Kind == ItemKind.Tool ? 2f : 1f;
                 crop.TakeHit(damage);
             }
-            else if (item != null && item.Kind == ItemKind.WateringCan &&
-                     hit.collider.TryGetComponent(out FarmPlot plot))
-                world.TryWater(plot);
-            else if (item != null && item.Kind == ItemKind.Tool &&
-                     hit.collider.TryGetComponent(out FarmPlot plotToTill))
-                world.TryTill(plotToTill);
-            else if (item != null && item.Kind == ItemKind.Tool &&
-                     hit.collider.GetComponent<SoilSurface>() != null)
-                world.SetMessage("Aim at a green plot to till it.");
+            else if (item != null && hit.collider.TryGetComponent(out SoilSurface soil))
+            {
+                if (hit.normal.y < .9f)
+                {
+                    world.SetMessage("Aim at the top of the ground.");
+                    return;
+                }
+                if (item.Kind == ItemKind.Tool)
+                    world.TryTill(soil, hit.point);
+                else if (item.Kind == ItemKind.WateringCan)
+                    world.TryWater(soil.FindPlot(hit.point));
+            }
         }
 
         public void DrawInventoryGUI()

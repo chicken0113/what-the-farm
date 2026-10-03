@@ -51,7 +51,7 @@ namespace WhatTheFarm.Prototype
                 float size = Mathf.Lerp(0.15f, 1f + generation * 0.16f, growthProgress / growthTime);
                 transform.localScale = Vector3.one * size;
                 Vector3 position = transform.position;
-                position.y = size;
+                position.y = plot.transform.position.y + size;
                 transform.position = position;
                 if (IsMature)
                 {

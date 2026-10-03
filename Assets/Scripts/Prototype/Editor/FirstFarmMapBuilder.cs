@@ -65,7 +65,7 @@ public static class FirstFarmMapBuilder
             Part(root, "Ground", new Vector3(0, -.125f, 0), new Vector3(4, .25f, 4), mats["Ground"]).AddComponent<SoilSurface>();
         });
         Save("Path_Block", root => Part(root, "Path", new Vector3(0, .015f, 0), new Vector3(2, .03f, 2), mats["Path"]));
-        Save("Water_Block", root => Part(root, "Water (placeholder)", new Vector3(0, .025f, 0), new Vector3(3, .05f, 3), mats["Water"], false));
+        Save("Water_Block", root => Part(root, "Water (placeholder)", new Vector3(0, .025f, 0), new Vector3(3, .05f, 3), mats["Water"]));
         Save("Rock_Block", root => Part(root, "Rock", new Vector3(0, .75f, 0), new Vector3(1.6f, 1.5f, 1.3f), mats["Rock"]));
         Save("Tree_Block", root =>
         {
@@ -98,13 +98,6 @@ public static class FirstFarmMapBuilder
         });
         Save("SpawnMarker_Block", root => Part(root, "Spawn marker", new Vector3(0, .03f, 0), new Vector3(1, .06f, 1), mats["Spawn"], false));
 
-        var plotRoot = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        plotRoot.name = "FarmPlot_Block";
-        plotRoot.transform.localScale = new Vector3(1.7f, .18f, 1.7f);
-        plotRoot.AddComponent<FarmPlot>().Configure(mats["Untilled"], mats["Tilled"], mats["Wet"], mats["Wood"]);
-        prefabs[plotRoot.name] = PrefabUtility.SaveAsPrefabAsset(plotRoot, $"{Kit}/{plotRoot.name}.prefab");
-        UnityEngine.Object.DestroyImmediate(plotRoot);
-
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var map = new GameObject("First Farm - editable blockout");
         GameObject Place(string name, Vector3 position, Vector3? scale = null, float rotation = 0)
@@ -125,9 +118,6 @@ public static class FirstFarmMapBuilder
         Place("Sell_Block", new Vector3(9, 0, 9));
         Place("RegionExit_Block", new Vector3(0, 0, 12));
         var spawn = Place("SpawnMarker_Block", new Vector3(0, 0, -9.5f));
-        for (int row = 0; row < 4; row++)
-        for (int column = 0; column < 5; column++)
-            Place("FarmPlot_Block", new Vector3((column - 2) * 2.1f, .09f, -3.5f + row * 2.1f));
         foreach (Vector3 location in new[] { new Vector3(-10,0,-10), new Vector3(10,0,-10), new Vector3(-11,0,4), new Vector3(11,0,4) })
             Place("Tree_Block", location);
         Place("Rock_Block", new Vector3(8, 0, 0));
@@ -175,22 +165,92 @@ public static class FirstFarmMapBuilder
 
     private static void Validate()
     {
-        // Instantiate the saved asset to verify serialized materials and furrows survive prefab creation.
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{Kit}/FarmPlot_Block.prefab");
-        var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-        var plot = instance.GetComponent<FarmPlot>();
-        if (plot.IsTilled || plot.Plant(null) || !plot.Till() || plot.Till())
-            throw new InvalidOperationException("Farm plot prefab state validation failed.");
-        if (instance.GetComponent<Renderer>().sharedMaterial == null || instance.transform.childCount != 3)
-            throw new InvalidOperationException("Farm plot prefab lost materials or furrows.");
-        UnityEngine.Object.DestroyImmediate(instance);
-        if (AssetDatabase.LoadAssetAtPath<GameObject>($"{Kit}/Water_Block.prefab").GetComponentsInChildren<Collider>().Length != 0)
-            throw new InvalidOperationException("Water placeholder must not block movement.");
+        if (AssetDatabase.LoadAssetAtPath<GameObject>($"{Kit}/Ground_Block.prefab")
+            .GetComponentInChildren<SoilSurface>() == null)
+            throw new InvalidOperationException("Ground must support local tilling.");
+    }
+
+    public static void MigrateGround()
+    {
+        var water = PrefabUtility.LoadPrefabContents($"{Kit}/Water_Block.prefab");
+        var surface = water.GetComponentInChildren<MeshRenderer>().gameObject;
+        if (surface.GetComponent<Collider>() == null) surface.AddComponent<BoxCollider>();
+        PrefabUtility.SaveAsPrefabAsset(water, $"{Kit}/Water_Block.prefab");
+        PrefabUtility.UnloadPrefabContents(water);
+        var scene = EditorSceneManager.OpenScene(ScenePath);
+        foreach (var root in scene.GetRootGameObjects())
+            foreach (var plot in root.GetComponentsInChildren<FarmPlot>(true))
+                UnityEngine.Object.DestroyImmediate(plot.gameObject);
+        EditorSceneManager.SaveScene(scene);
+        AssetDatabase.DeleteAsset($"{Kit}/FarmPlot_Block.prefab");
+        AssetDatabase.SaveAssets();
+        ValidateGround();
+    }
+
+    public static void ValidateGround()
+    {
+        var root = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        root.transform.position = new Vector3(100, -.125f, 100);
+        root.transform.localScale = new Vector3(26, .25f, 26);
+        var soil = root.AddComponent<SoilSurface>();
+        var dry = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Tilled.mat");
+        var wet = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Wet.mat");
+        Physics.SyncTransforms();
+        var center = new Vector3(100, 0, 100);
+        if (soil.FindPlot(center) != null) throw new InvalidOperationException("Untilled ground accepted.");
+        var first = soil.Till(center, .8f, dry, wet);
+        if (first == null || !first.IsTilled || first.IsWatered || first.Plant(null) ||
+            soil.FindPlot(center + Vector3.right * .5f) != first ||
+            soil.FindPlot(center + Vector3.right * 2) != null ||
+            soil.Till(center, .8f, dry, wet) != null)
+            throw new InvalidOperationException("Local tilling validation failed.");
+        var second = soil.Till(center + Vector3.right * 3, .8f, dry, wet);
+        var crop = new GameObject("Validation crop").AddComponent<FleeingCrop>();
+        if (!first.Plant(crop)) throw new InvalidOperationException("Planting failed.");
+        first.Water();
+        if (!first.IsWatered || second.IsWatered || second.IsOccupied)
+            throw new InvalidOperationException("Soil states leaked between areas.");
+        first.Clear(crop);
+        if (first.IsOccupied || first.IsWatered || !first.IsTilled)
+            throw new InvalidOperationException("Harvest soil reset failed.");
+        var edge = soil.Till(center + Vector3.right * 12.8f, .8f, dry, wet);
+        foreach (var vertex in edge.GetComponent<MeshFilter>().sharedMesh.vertices)
+            if (edge.transform.TransformPoint(vertex).x > 113.001f)
+                throw new InvalidOperationException("Tilled soil extends beyond ground.");
+        UnityEngine.Object.DestroyImmediate(crop.gameObject);
+        UnityEngine.Object.DestroyImmediate(root);
+        var plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        plane.transform.position = new Vector3(100, 0, 100);
+        Physics.SyncTransforms();
+        var planeArea = plane.AddComponent<SoilSurface>().Till(center + Vector3.right * 4.8f, .8f, dry, wet);
+        foreach (var vertex in planeArea.GetComponent<MeshFilter>().sharedMesh.vertices)
+            if (planeArea.transform.TransformPoint(vertex).x > 105.001f)
+                throw new InvalidOperationException("Plane soil extends beyond ground.");
+        UnityEngine.Object.DestroyImmediate(plane);
+        Debug.Log("Local ground tilling validation passed.");
+    }
+
+    public static void CaptureTillingPreview()
+    {
+        ValidateGround();
+        EditorSceneManager.OpenScene(ScenePath);
+        var soil = UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
+        var dry = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Tilled.mat");
+        var wet = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Wet.mat");
+        soil.Till(new Vector3(-2, 0, -2), .8f, dry, wet);
+        soil.Till(new Vector3(0, 0, -2), .8f, dry, wet);
+        soil.Till(new Vector3(2, 0, -2), 1.2f, dry, wet);
+        CapturePreviewImage();
     }
 
     public static void CapturePreview()
     {
         EditorSceneManager.OpenScene(ScenePath);
+        CapturePreviewImage();
+    }
+
+    private static void CapturePreviewImage()
+    {
         var camera = new GameObject("Preview Camera").AddComponent<Camera>();
         camera.transform.position = new Vector3(25, 30, -30);
         camera.transform.LookAt(Vector3.zero);

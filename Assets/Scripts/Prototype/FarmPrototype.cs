@@ -9,6 +9,7 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(1)] private int inventorySlotCount = 12;
         [SerializeField] private bool buildArenaAtRuntime = true;
         [SerializeField] private Transform playerSpawnPoint;
+        [SerializeField, Min(.1f)] private float tillingRadius = .8f;
 
         public void UseSceneMap() => buildArenaAtRuntime = false;
         public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
@@ -16,10 +17,8 @@ namespace WhatTheFarm.Prototype
         private float messageUntil;
         private string message = "Pick up the hoe and till the soil first.";
         private Material soilMaterial;
-        private Material untilledPlotMaterial;
         private Material dryPlotMaterial;
         private Material wetPlotMaterial;
-        private Material furrowMaterial;
         private Material seedMaterial;
         private Material toolMaterial;
         private Material wateringCanMaterial;
@@ -37,10 +36,8 @@ namespace WhatTheFarm.Prototype
         private void Awake()
         {
             soilMaterial = MakeMaterial(new Color(0.32f, 0.22f, 0.13f));
-            untilledPlotMaterial = MakeMaterial(new Color(0.43f, 0.61f, 0.28f));
             dryPlotMaterial = MakeMaterial(new Color(0.18f, 0.10f, 0.06f));
             wetPlotMaterial = MakeMaterial(new Color(0.15f, 0.22f, 0.31f));
-            furrowMaterial = MakeMaterial(new Color(0.42f, 0.26f, 0.12f));
             seedMaterial = MakeMaterial(new Color(0.91f, 0.75f, 0.27f));
             toolMaterial = MakeMaterial(new Color(0.52f, 0.72f, 0.84f));
             wateringCanMaterial = MakeMaterial(new Color(0.18f, 0.68f, 0.93f));
@@ -73,18 +70,6 @@ namespace WhatTheFarm.Prototype
             soil.transform.localScale = Vector3.one * (HalfSize * 2f / 10f);
             soil.GetComponent<Renderer>().material = soilMaterial;
             soil.AddComponent<SoilSurface>();
-
-            for (int row = 0; row < 4; row++)
-            for (int column = 0; column < 5; column++)
-            {
-                GameObject patch = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                patch.name = $"Plot {row + 1}-{column + 1} (Untilled)";
-                patch.transform.SetParent(transform);
-                patch.transform.position = new Vector3((column - 2) * 2.1f, 0.09f, -3.5f + row * 2.1f);
-                patch.transform.localScale = new Vector3(1.7f, 0.18f, 1.7f);
-                patch.AddComponent<FarmPlot>().Configure(
-                    untilledPlotMaterial, dryPlotMaterial, wetPlotMaterial, furrowMaterial);
-            }
 
             Material fenceMaterial = MakeMaterial(new Color(0.47f, 0.34f, 0.2f));
             CreateBlock("North Fence", new Vector3(0f, 0.6f, HalfSize),
@@ -173,27 +158,26 @@ namespace WhatTheFarm.Prototype
             return item;
         }
 
-        public bool TryTill(FarmPlot plot)
+        public bool TryTill(SoilSurface soil, Vector3 point)
         {
-            if (plot == null)
+            if (soil == null) return false;
+            if (soil.Till(point, tillingRadius, dryPlotMaterial, wetPlotMaterial) == null)
             {
-                SetMessage("Aim at a green plot to till it.");
+                SetMessage("This ground is already tilled.");
                 return false;
             }
-            if (!plot.Till())
-            {
-                SetMessage("This plot is already tilled.");
-                return false;
-            }
-            plot.name = plot.name.Replace(" (Untilled)", " (Tilled)");
-            SetMessage("Plot tilled. Pick up any item and press E over this plot to plant it.");
+            SetMessage("Ground tilled. Press E here with an item to plant it.");
             return true;
         }
 
-        public bool TryPlant(FarmItem item, FarmPlot plot)
+        public bool TryPlant(FarmItem item, FarmPlot plot, Vector3 position)
         {
-            if (item == null || plot == null)
+            if (item == null) return false;
+            if (plot == null)
+            {
+                SetMessage("Till this ground with the hoe before planting.");
                 return false;
+            }
             if (!plot.IsTilled)
             {
                 SetMessage("Till this green plot with the hoe before planting.");
@@ -207,7 +191,7 @@ namespace WhatTheFarm.Prototype
 
             GameObject plant = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             plant.transform.SetParent(transform);
-            plant.transform.position = plot.transform.position + Vector3.up * 0.105f;
+            plant.transform.position = position + Vector3.up * 0.15f;
             plant.GetComponent<Renderer>().material = new Material(cropMaterial);
             FleeingCrop cropComponent = plant.AddComponent<FleeingCrop>();
             if (!plot.Plant(cropComponent))
@@ -284,12 +268,13 @@ namespace WhatTheFarm.Prototype
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
                         : crop.IsWatered ? "Growing crop" : "Dry crop - water its plot";
-                else if (hit.collider.TryGetComponent(out FarmPlot plot))
-                    target = !plot.IsTilled ? "Untilled green plot - use hoe" : plot.IsOccupied
-                        ? (plot.IsWatered ? "Watered plot" : "Dry plot - water with can")
-                        : "Empty tilled plot - press E to plant";
-                else if (hit.collider.GetComponent<SoilSurface>() != null)
-                    target = "Ground - aim at a green plot";
+                else if (hit.collider.TryGetComponent(out SoilSurface soil))
+                {
+                    FarmPlot plot = soil.FindPlot(hit.point);
+                    target = plot == null ? "Untilled ground - use hoe" : plot.IsOccupied
+                        ? (plot.IsWatered ? "Watered soil" : "Dry soil - water with can")
+                        : "Tilled ground - press E to plant";
+                }
                 if (target != null)
                     GUI.Box(new Rect(Screen.width * 0.5f - 130f, Screen.height * 0.5f + 20f, 260f, 30f), target);
             }
