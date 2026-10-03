@@ -168,6 +168,11 @@ MonoBehaviour:
     profile: {fileID: 11400000, guid: 2986fc0a085489a459c32425e8e943e5, type: 2}
   - kind: 4
     profile: {fileID: 11400000, guid: 2159b089ee8c9e440bf230101c2d885f, type: 2}
+  itemPrefabs:
+  - kind: 2
+    prefab: {fileID: 4445318358028371183, guid: 4a2604aabedc9e14babeeafa80662f55, type: 3}
+  - kind: 4
+    prefab: {fileID: 8673013832505850570, guid: 68d68b20810be3d4ca62868c7d5fa7e9, type: 3}
 --- !u!4 &628829474
 Transform:
   m_ObjectHideFlags: 0

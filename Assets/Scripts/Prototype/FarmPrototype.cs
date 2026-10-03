@@ -21,6 +21,14 @@ namespace WhatTheFarm.Prototype
             public PlantGrowthProfile profile;
         }
         [SerializeField] private GrowthBinding[] growthProfiles = System.Array.Empty<GrowthBinding>();
+        [System.Serializable]
+        public sealed class ItemPrefabBinding
+        {
+            public ItemKind kind;
+            public FarmItem prefab;
+        }
+        [SerializeField] private ItemPrefabBinding[] itemPrefabs = System.Array.Empty<ItemPrefabBinding>();
+        public void SetItemPrefabs(ItemPrefabBinding[] bindings) => itemPrefabs = bindings;
         public void SetGrowthDefaults(PlantGrowthProfile fallback, SoilType soil, GrowthBinding[] bindings)
         {
             defaultGrowthProfile = fallback; defaultSoilType = soil; growthProfiles = bindings;
@@ -182,6 +190,14 @@ namespace WhatTheFarm.Prototype
         public FarmItem CreateItem(ItemKind kind, int generation, int baseValue, Vector3 position)
         {
             EnsureMaterials();
+            foreach (var binding in itemPrefabs)
+            {
+                if (binding == null || binding.kind != kind || binding.prefab == null) continue;
+                var modelItem = Instantiate(binding.prefab, position, Quaternion.identity, transform);
+                modelItem.Configure(kind, generation, baseValue);
+                modelItem.SetGrowthProfile(ProfileFor(kind));
+                return modelItem;
+            }
             PrimitiveType shape = kind switch
             {
                 ItemKind.Seed => PrimitiveType.Sphere,
