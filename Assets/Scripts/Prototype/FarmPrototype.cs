@@ -27,27 +27,6 @@ namespace WhatTheFarm.Prototype
         public void UseSceneMap() => buildArenaAtRuntime = false;
         public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
         private LocalFarmer player;
-        private readonly System.Collections.Generic.List<FleeingCrop> plantedCrops = new();
-
-        public void RegisterPlant(FleeingCrop crop)
-        {
-            if (!plantedCrops.Contains(crop)) plantedCrops.Add(crop);
-        }
-
-        public void UnregisterPlant(FleeingCrop crop) => plantedCrops.Remove(crop);
-
-        public void ResolveGrowthOverlap(FleeingCrop growing)
-        {
-            if (!growing.IsPlanted) return;
-            // Only registered, rooted crops qualify. Scenery and loose items never enter this list.
-            for (int index = plantedCrops.Count - 1; index >= 0; index--)
-            {
-                FleeingCrop other = plantedCrops[index];
-                if (other == null || other == growing || !other.IsPlanted) continue;
-                if (growing.Overlaps(other))
-                    other.DestroyFromGrowth();
-            }
-        }
         private float messageUntil;
         private string message = "Pick up the hoe and till the soil first.";
         private Material soilMaterial;
@@ -235,6 +214,11 @@ namespace WhatTheFarm.Prototype
                 SetMessage("Aim inside the tilled ground before planting.");
                 return false;
             }
+            if (plot.IsOccupied)
+            {
+                SetMessage("This tilled area already has a plant. Use an empty area.");
+                return false;
+            }
             EnsureMaterials();
             Vector3 size = item.transform.lossyScale;
             GameObject plant = Instantiate(item.gameObject);
@@ -347,7 +331,7 @@ namespace WhatTheFarm.Prototype
                 {
                     FarmPlot plot = soil.FindPlot(hit.point);
                     target = plot == null ? "Untilled ground - use hoe" : plot.IsOccupied
-                        ? (plot.IsWatered ? "Watered soil" : "Dry soil - water with can")
+                        ? (plot.IsWatered ? "Occupied soil - watered" : "Occupied soil - water with can")
                         : "Tilled ground - press E to plant";
                 }
                 if (target != null)

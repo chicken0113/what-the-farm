@@ -66,7 +66,6 @@ namespace WhatTheFarm.Prototype
             position.y = groundHeight + baseOffset;
             transform.position = position;
             gameObject.name = $"Growing {source.DisplayName}";
-            world.RegisterPlant(this);
         }
 
         private void Update()
@@ -106,8 +105,6 @@ namespace WhatTheFarm.Prototype
             Vector3 position = transform.position;
             position.y = groundHeight + baseOffset * size;
             transform.position = position;
-            Physics.SyncTransforms();
-            world.ResolveGrowthOverlap(this);
             if (IsMature)
             {
                 gameObject.name = $"Mature crop +{generation}";
@@ -122,29 +119,6 @@ namespace WhatTheFarm.Prototype
         {
             if (plot != null) plot.Clear(this);
             plot = null;
-            if (world != null) world.UnregisterPlant(this);
-        }
-
-        public bool Overlaps(FleeingCrop other)
-        {
-            foreach (Collider body in bodies)
-                foreach (Collider neighbour in other.bodies)
-                    if (body != null && neighbour != null && body.enabled && neighbour.enabled &&
-                        !body.isTrigger && !neighbour.isTrigger &&
-                        Physics.ComputePenetration(body, body.transform.position, body.transform.rotation,
-                            neighbour, neighbour.transform.position, neighbour.transform.rotation, out _, out _))
-                        return true;
-            return false;
-        }
-
-        public void DestroyFromGrowth()
-        {
-            if (!IsPlanted) return;
-            removed = true;
-            ReleaseSoil();
-            gameObject.SetActive(false);
-            if (Application.isPlaying) Destroy(gameObject);
-            else DestroyImmediate(gameObject);
         }
 
         private void OnDestroy()

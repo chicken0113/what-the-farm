@@ -38,7 +38,7 @@ namespace WhatTheFarm.Prototype
 
         public bool Plant(FleeingCrop plantedCrop)
         {
-            if (!IsTilled || plantedCrop == null || crops.Contains(plantedCrop))
+            if (!IsTilled || IsOccupied || plantedCrop == null)
                 return false;
 
             crops.Add(plantedCrop);
