@@ -164,6 +164,23 @@ namespace WhatTheFarm.Prototype
                 ~0, QueryTriggerInteraction.Ignore);
         }
 
+        public bool TryLookSoil(out RaycastHit hit)
+        {
+            hit = default;
+            float nearest = float.PositiveInfinity;
+            foreach (RaycastHit candidate in Physics.RaycastAll(view.transform.position,
+                view.transform.forward, 4f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                // Planting aims at soil behind crops; solid scenery still blocks the ray.
+                if (candidate.collider.GetComponent<FleeingCrop>() != null) continue;
+                if (candidate.distance >= nearest) continue;
+                nearest = candidate.distance;
+                hit = candidate;
+            }
+            return nearest < float.PositiveInfinity && hit.normal.y >= .9f &&
+                hit.collider.GetComponent<SoilSurface>() != null;
+        }
+
         private void Interact()
         {
             if (!TryLook(out RaycastHit hit))
@@ -190,17 +207,17 @@ namespace WhatTheFarm.Prototype
                 RefreshHeldItem();
                 world.SetMessage($"Picked up {groundItem.DisplayName} in slot {slot + 1}.");
             }
-            else if (hit.collider.TryGetComponent(out SoilSurface soil))
+            else if (TryLookSoil(out RaycastHit soilHit))
             {
-                if (hit.normal.y < .9f) return;
-                FarmPlot plot = soil.FindPlot(hit.point);
+                SoilSurface soil = soilHit.collider.GetComponent<SoilSurface>();
+                FarmPlot plot = soil.FindPlot(soilHit.point);
                 FarmItem item = HeldItem;
                 if (item == null)
                 {
                     world.SetMessage("Select an item in the hotbar before planting.");
                     return;
                 }
-                if (world.TryPlant(item, plot, hit.point))
+                if (world.TryPlant(item, plot, soilHit.point))
                 {
                     inventory[selectedSlot] = null;
                     Destroy(item.gameObject);
@@ -243,7 +260,7 @@ namespace WhatTheFarm.Prototype
             {
                 if (item != null && item.Kind == ItemKind.WateringCan && !crop.IsMature)
                 {
-                    world.TryWater(crop.Plot);
+                    if (crop.IsPlanted) world.TryWater(crop.Plot);
                     return;
                 }
 

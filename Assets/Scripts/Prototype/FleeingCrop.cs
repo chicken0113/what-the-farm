@@ -16,6 +16,10 @@ namespace WhatTheFarm.Prototype
         private float nextFleeDirectionTime;
         private Vector3 fleeDirection;
         private Renderer visual;
+        private bool removed;
+        private float groundHeight;
+        public Collider Body { get; private set; }
+        public bool IsPlanted => !removed && plot != null && plot.Contains(this);
 
         public bool IsMature => growthProgress >= growthTime;
         public bool IsWatered => plot != null && plot.IsWatered;
@@ -29,6 +33,8 @@ namespace WhatTheFarm.Prototype
         {
             world = prototype;
             plot = homePlot;
+            groundHeight = transform.position.y - .15f;
+            Body = GetComponent<Collider>();
             sourceKind = source.Kind;
             generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
             baseValue = source.BaseValue;
@@ -38,26 +44,15 @@ namespace WhatTheFarm.Prototype
             visual = GetComponent<Renderer>();
             transform.localScale = Vector3.one * 0.15f;
             gameObject.name = $"Growing {source.DisplayName}";
+            world.RegisterPlant(this);
         }
 
         private void Update()
         {
+            if (removed) return;
             if (!IsMature)
             {
-                if (!IsWatered)
-                    return;
-
-                growthProgress = Mathf.Min(growthTime, growthProgress + Time.deltaTime);
-                float size = Mathf.Lerp(0.15f, 1f + generation * 0.16f, growthProgress / growthTime);
-                transform.localScale = Vector3.one * size;
-                Vector3 position = transform.position;
-                position.y = plot.transform.position.y + size;
-                transform.position = position;
-                if (IsMature)
-                {
-                    gameObject.name = $"Mature crop +{generation}";
-                    visual.material.color = new Color(1f, 0.48f, 0.13f);
-                }
+                Grow(Time.deltaTime);
                 return;
             }
 
@@ -80,8 +75,47 @@ namespace WhatTheFarm.Prototype
             transform.Rotate(Vector3.up, 95f * Time.deltaTime, Space.World);
         }
 
+        public void Grow(float elapsed)
+        {
+            if (!IsPlanted || !IsWatered || IsMature || elapsed <= 0) return;
+            growthProgress = Mathf.Min(growthTime, growthProgress + elapsed);
+            float size = Mathf.Lerp(.15f, 1f + generation * .16f, growthProgress / growthTime);
+            transform.localScale = Vector3.one * size;
+            Vector3 position = transform.position;
+            position.y = groundHeight + size;
+            transform.position = position;
+            Physics.SyncTransforms();
+            world.ResolveGrowthOverlap(this);
+            if (IsMature)
+            {
+                gameObject.name = $"Mature crop +{generation}";
+                visual.sharedMaterial.color = new Color(1f, .48f, .13f);
+                ReleaseSoil();
+            }
+        }
+
+        private void ReleaseSoil()
+        {
+            if (plot != null) plot.Clear(this);
+            plot = null;
+            if (world != null) world.UnregisterPlant(this);
+        }
+
+        public void DestroyFromGrowth()
+        {
+            if (!IsPlanted) return;
+            removed = true;
+            ReleaseSoil();
+            gameObject.SetActive(false);
+            if (Application.isPlaying) Destroy(gameObject);
+            else DestroyImmediate(gameObject);
+        }
+
+        private void OnDestroy() => ReleaseSoil();
+
         public void TakeHit(float damage)
         {
+            if (removed) return;
             if (!IsMature)
             {
                 world.SetMessage("Wait until the crop is fully grown.");
@@ -98,7 +132,8 @@ namespace WhatTheFarm.Prototype
             ItemKind resultKind = sourceKind == ItemKind.Seed ? ItemKind.Produce : sourceKind;
             world.CreateItem(resultKind, generation, baseValue, transform.position + Vector3.up * 0.5f);
             world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
-            plot.Clear(this);
+            removed = true;
+            ReleaseSoil();
             Destroy(gameObject);
         }
     }

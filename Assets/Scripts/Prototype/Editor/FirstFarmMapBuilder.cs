@@ -243,6 +243,82 @@ public static class FirstFarmMapBuilder
         CapturePreviewImage();
     }
 
+    public static void ValidatePlantingGrowth()
+    {
+        ValidateGround();
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ground.transform.position = new Vector3(100, -.125f, 100);
+        ground.transform.localScale = new Vector3(26, .25f, 26);
+        var soil = ground.AddComponent<SoilSurface>();
+        var dry = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Tilled.mat");
+        var wet = AssetDatabase.LoadAssetAtPath<Material>($"{Materials}/Wet.mat");
+        var origin = new Vector3(100, 0, 100);
+        Physics.SyncTransforms();
+        var plot = soil.Till(origin, .8f, dry, wet);
+        var world = new GameObject("Validation world").AddComponent<FarmPrototype>();
+        world.SetBaseMaterial(AssetDatabase.LoadAssetAtPath<Material>("Assets/Settings/PrototypeBaseMaterial.mat"));
+        var source = new GameObject("Plantable source").AddComponent<FarmItem>();
+        FleeingCrop Plant(ItemKind kind, FarmPlot area, Vector3 point)
+        {
+            source.Configure(kind, 0, 10);
+            if (!world.TryPlant(source, area, point)) throw new InvalidOperationException("Free planting rejected.");
+            var all = world.GetComponentsInChildren<FleeingCrop>();
+            var crop = all[all.Length - 1];
+            if (Vector3.Distance(crop.transform.position, point + Vector3.up * .15f) > .001f)
+                throw new InvalidOperationException("Plant snapped away from aim point.");
+            return crop;
+        }
+        var growing = Plant(ItemKind.Seed, plot, origin + Vector3.left * .4f);
+        var far = Plant(ItemKind.Seed, plot, origin + Vector3.right * .6f);
+        var victims = new List<FleeingCrop>();
+        foreach (ItemKind kind in Enum.GetValues(typeof(ItemKind)))
+            victims.Add(Plant(kind, plot, origin + Vector3.left * .2f));
+        if (world.TryPlant(source, plot, origin + Vector3.right * 2))
+            throw new InvalidOperationException("Planting outside tilled range accepted.");
+
+        var scenery = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        scenery.transform.position = growing.transform.position;
+        var loose = world.CreateItem(ItemKind.Seed, 0, 10, growing.transform.position);
+        var freeCrop = GameObject.CreatePrimitive(PrimitiveType.Capsule).AddComponent<FleeingCrop>();
+        freeCrop.transform.position = growing.transform.position;
+        var maturePlot = soil.Till(origin + Vector3.right * 4, .8f, dry, wet);
+        var mature = Plant(ItemKind.Produce, maturePlot, maturePlot.transform.position);
+        maturePlot.Water(); mature.Grow(10);
+        mature.transform.position = growing.transform.position;
+        if (mature.IsPlanted || !mature.IsMature) throw new InvalidOperationException("Mature crop remains rooted.");
+        growing.Grow(3);
+        if (victims.Exists(crop => crop == null)) throw new InvalidOperationException("Dry plant destroyed neighbours.");
+        plot.Water(); growing.Grow(3);
+        if (victims.Exists(crop => crop != null) || !growing.IsPlanted || !far.IsPlanted)
+            throw new InvalidOperationException($"Growth overlap failed: remaining={victims.FindAll(crop => crop != null).Count}, grower={growing.IsPlanted}, distant={far.IsPlanted}.");
+        if (scenery == null || loose == null || freeCrop == null || mature == null || ground == null)
+            throw new InvalidOperationException("Growth destroyed a protected object.");
+        if (!plot.IsOccupied || !plot.IsWatered)
+            throw new InvalidOperationException("Destroying a neighbour reset surviving plants' soil.");
+
+        var adjoining = soil.Till(origin + Vector3.forward * 1.7f, .8f, dry, wet);
+        var edgeGrower = Plant(ItemKind.Seed, plot, origin + Vector3.forward * .7f);
+        var edgeVictim = Plant(ItemKind.Seed, adjoining, origin + Vector3.forward * 1.0f);
+        edgeGrower.Grow(3);
+        if (edgeVictim != null) throw new InvalidOperationException("Growth missed a neighbour in another soil area.");
+
+        var farmer = new GameObject("Aim validation").AddComponent<LocalFarmer>();
+        var camera = new GameObject("Aim camera").AddComponent<Camera>();
+        camera.transform.position = far.transform.position + Vector3.up * 2;
+        camera.transform.rotation = Quaternion.Euler(90, 0, 0);
+        farmer.Configure(world, camera, 12);
+        Physics.SyncTransforms();
+        if (!farmer.TryLookSoil(out RaycastHit aim) || Vector3.Distance(aim.point, origin + Vector3.right * .6f) > .001f)
+            throw new InvalidOperationException("Existing crop blocks planting aim.");
+        var obstruction = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        obstruction.transform.position = origin + new Vector3(.6f, .7f, 0);
+        Physics.SyncTransforms();
+        if (farmer.TryLookSoil(out _)) throw new InvalidOperationException("Planting aim passes through solid scenery.");
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        Debug.Log("Free planting and protected growth destruction validation passed.");
+    }
+
     public static void CapturePreview()
     {
         EditorSceneManager.OpenScene(ScenePath);

@@ -7,11 +7,14 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Material dryMaterial;
         [SerializeField] private Material wetMaterial;
         [SerializeField] private Renderer visual;
-        private FleeingCrop crop;
+        private readonly System.Collections.Generic.List<FleeingCrop> crops = new();
         public bool IsTilled { get; private set; }
         public bool IsWatered { get; private set; }
-        public bool IsOccupied => crop != null;
-        public FleeingCrop Crop => crop;
+        public bool IsOccupied => crops.Count > 0;
+        public bool Contains(FleeingCrop crop) => crops.Contains(crop);
+        public bool ContainsPoint(Vector3 point) =>
+            new Vector2(point.x - transform.position.x, point.z - transform.position.z).sqrMagnitude
+                <= Radius * Radius && Mathf.Abs(point.y - transform.position.y) < .05f;
         public float Radius { get; private set; }
 
         public void ConfigureArea(Renderer areaVisual, Material dry, Material wet, float radius)
@@ -35,12 +38,10 @@ namespace WhatTheFarm.Prototype
 
         public bool Plant(FleeingCrop plantedCrop)
         {
-            if (!IsTilled || IsOccupied || plantedCrop == null)
+            if (!IsTilled || plantedCrop == null || crops.Contains(plantedCrop))
                 return false;
 
-            crop = plantedCrop;
-            IsWatered = false;
-            visual.sharedMaterial = dryMaterial;
+            crops.Add(plantedCrop);
             return true;
         }
 
@@ -55,12 +56,14 @@ namespace WhatTheFarm.Prototype
 
         public void Clear(FleeingCrop harvestedCrop)
         {
-            if (crop != harvestedCrop)
+            if (!crops.Remove(harvestedCrop))
                 return;
 
-            crop = null;
-            IsWatered = false;
-            visual.sharedMaterial = dryMaterial;
+            if (!IsOccupied)
+            {
+                IsWatered = false;
+                visual.sharedMaterial = dryMaterial;
+            }
         }
     }
 }

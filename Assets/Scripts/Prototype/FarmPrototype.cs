@@ -14,6 +14,28 @@ namespace WhatTheFarm.Prototype
         public void UseSceneMap() => buildArenaAtRuntime = false;
         public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
         private LocalFarmer player;
+        private readonly System.Collections.Generic.List<FleeingCrop> plantedCrops = new();
+
+        public void RegisterPlant(FleeingCrop crop)
+        {
+            if (!plantedCrops.Contains(crop)) plantedCrops.Add(crop);
+        }
+
+        public void UnregisterPlant(FleeingCrop crop) => plantedCrops.Remove(crop);
+
+        public void ResolveGrowthOverlap(FleeingCrop growing)
+        {
+            if (!growing.IsPlanted) return;
+            // Only registered, rooted crops qualify. Scenery and loose items never enter this list.
+            for (int index = plantedCrops.Count - 1; index >= 0; index--)
+            {
+                FleeingCrop other = plantedCrops[index];
+                if (other == null || other == growing || !other.IsPlanted) continue;
+                if (Physics.ComputePenetration(growing.Body, growing.transform.position, growing.transform.rotation,
+                    other.Body, other.transform.position, other.transform.rotation, out _, out _))
+                    other.DestroyFromGrowth();
+            }
+        }
         private float messageUntil;
         private string message = "Pick up the hoe and till the soil first.";
         private Material soilMaterial;
@@ -35,15 +57,7 @@ namespace WhatTheFarm.Prototype
 
         private void Awake()
         {
-            soilMaterial = MakeMaterial(new Color(0.32f, 0.22f, 0.13f));
-            dryPlotMaterial = MakeMaterial(new Color(0.18f, 0.10f, 0.06f));
-            wetPlotMaterial = MakeMaterial(new Color(0.15f, 0.22f, 0.31f));
-            seedMaterial = MakeMaterial(new Color(0.91f, 0.75f, 0.27f));
-            toolMaterial = MakeMaterial(new Color(0.52f, 0.72f, 0.84f));
-            wateringCanMaterial = MakeMaterial(new Color(0.18f, 0.68f, 0.93f));
-            curioMaterial = MakeMaterial(new Color(0.62f, 0.57f, 0.76f));
-            cropMaterial = MakeMaterial(new Color(0.27f, 0.77f, 0.33f));
-
+            EnsureMaterials();
             if (buildArenaAtRuntime)
                 CreateArena();
             CreatePlayer();
@@ -53,6 +67,20 @@ namespace WhatTheFarm.Prototype
             CreateItem(ItemKind.Seed, 0, 10, new Vector3(1f, 0.45f, -7f));
             CreateItem(ItemKind.Seed, 0, 10, new Vector3(2f, 0.45f, -7f));
             CreateItem(ItemKind.Curio, 0, 6, new Vector3(3.2f, 0.55f, -7f));
+        }
+
+        private void EnsureMaterials()
+        {
+            if (cropMaterial != null) return;
+            soilMaterial = MakeMaterial(new Color(0.32f, 0.22f, 0.13f));
+            dryPlotMaterial = MakeMaterial(new Color(0.18f, 0.10f, 0.06f));
+            wetPlotMaterial = MakeMaterial(new Color(0.15f, 0.22f, 0.31f));
+            seedMaterial = MakeMaterial(new Color(0.91f, 0.75f, 0.27f));
+            toolMaterial = MakeMaterial(new Color(0.52f, 0.72f, 0.84f));
+            wateringCanMaterial = MakeMaterial(new Color(0.18f, 0.68f, 0.93f));
+            curioMaterial = MakeMaterial(new Color(0.62f, 0.57f, 0.76f));
+            cropMaterial = MakeMaterial(new Color(0.27f, 0.77f, 0.33f));
+
         }
 
         private Material MakeMaterial(Color color)
@@ -178,17 +206,12 @@ namespace WhatTheFarm.Prototype
                 SetMessage("Till this ground with the hoe before planting.");
                 return false;
             }
-            if (!plot.IsTilled)
+            if (!plot.IsTilled || !plot.ContainsPoint(position))
             {
-                SetMessage("Till this green plot with the hoe before planting.");
+                SetMessage("Aim inside the tilled ground before planting.");
                 return false;
             }
-            if (plot.IsOccupied)
-            {
-                SetMessage("This plot already has a crop.");
-                return false;
-            }
-
+            EnsureMaterials();
             GameObject plant = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             plant.transform.SetParent(transform);
             plant.transform.position = position + Vector3.up * 0.15f;
@@ -214,11 +237,6 @@ namespace WhatTheFarm.Prototype
             if (!plot.IsOccupied)
             {
                 SetMessage("Plant an item here before watering.");
-                return;
-            }
-            if (plot.Crop.IsMature)
-            {
-                SetMessage("This crop is already mature. Chase it and harvest it.");
                 return;
             }
             if (plot.IsWatered)
