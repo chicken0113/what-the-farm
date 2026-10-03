@@ -14,6 +14,8 @@ namespace WhatTheFarm.Prototype
         public float WaterAmount => Mathf.Clamp(waterAmount, 0, 100);
         public bool GrowthStarted => growthStarted;
         public SoilType SoilType => surface != null ? surface.Type : null;
+        public SoilSurface Surface => surface;
+        public Vector3 PlantPosition => crops.Count > 0 && crops[0] != null ? crops[0].transform.position : transform.position;
         public float GetLight(Vector3 point, Transform plant = null) => surface != null ? surface.GetLight(point, plant) : 80;
         public void BindSurface(SoilSurface soil)
         {

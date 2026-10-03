@@ -19,6 +19,7 @@ namespace WhatTheFarm.Prototype
         private readonly System.Collections.Generic.List<Material> ownedMaterials = new();
         private Collider[] bodies;
         private Vector3 initialScale;
+        private Vector3 originalItemScale;
         private float baseOffset;
         private bool removed;
         private float groundHeight;
@@ -42,6 +43,7 @@ namespace WhatTheFarm.Prototype
             plot = homePlot;
             groundHeight = soilHeight;
             initialScale = transform.localScale;
+            originalItemScale = source.OriginalScale;
             bodies = GetComponentsInChildren<Collider>();
             sourceKind = source.Kind;
             generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
@@ -169,6 +171,7 @@ namespace WhatTheFarm.Prototype
             ReleaseSoil();
             FarmItem harvested = gameObject.AddComponent<FarmItem>();
             harvested.Configure(resultKind, generation, baseValue);
+            harvested.SetOriginalScale(originalItemScale);
             harvested.SetGrowthProfile(growthProfile);
             harvested.OwnMaterials(ownedMaterials);
             ownedMaterials.Clear();

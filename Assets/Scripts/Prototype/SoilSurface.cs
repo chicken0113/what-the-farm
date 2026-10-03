@@ -34,6 +34,19 @@ namespace WhatTheFarm.Prototype
             return Mathf.Clamp(lightAmount * sunlight.intensity / Mathf.Max(.01f, fullSunIntensity), 0, 100);
         }
         private readonly System.Collections.Generic.List<FarmPlot> areas = new();
+        public int WaterArea(Vector3 point, float radius, float amount)
+        {
+            int watered = 0;
+            foreach (var area in areas)
+            {
+                if (area == null || !area.IsOccupied || area.WaterAmount >= 100) continue;
+                Vector3 target = area.PlantPosition;
+                if (new Vector2(target.x - point.x, target.z - point.z).sqrMagnitude > radius * radius) continue;
+                area.Water(amount);
+                watered++;
+            }
+            return watered;
+        }
 
         public FarmPlot FindPlot(Vector3 point)
         {

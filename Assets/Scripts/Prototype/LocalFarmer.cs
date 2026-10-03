@@ -275,11 +275,11 @@ namespace WhatTheFarm.Prototype
             {
                 if (item != null && item.Kind == ItemKind.WateringCan && !crop.IsMature)
                 {
-                    if (crop.IsPlanted) world.TryWater(crop.Plot);
+                    if (crop.IsPlanted) world.TryWater(crop.Plot.Surface, crop.transform.position, item);
                     return;
                 }
 
-                float damage = item != null && item.Kind == ItemKind.Tool ? 2f : 1f;
+                float damage = item != null && item.Kind == ItemKind.Tool ? 2f * item.SizeMultiplier : 1f;
                 crop.TakeHit(damage);
             }
             else if (item != null && hit.collider.TryGetComponent(out SoilSurface soil))
@@ -290,9 +290,9 @@ namespace WhatTheFarm.Prototype
                     return;
                 }
                 if (item.Kind == ItemKind.Tool)
-                    world.TryTill(soil, hit.point);
+                    world.TryTill(soil, hit.point, item);
                 else if (item.Kind == ItemKind.WateringCan)
-                    world.TryWater(soil.FindPlot(hit.point));
+                    world.TryWater(soil, hit.point, item);
             }
         }
 

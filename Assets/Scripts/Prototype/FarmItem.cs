@@ -17,6 +17,27 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(0)] private int generation;
         [SerializeField, Min(0)] private int baseValue = 10;
         [SerializeField] private PlantGrowthProfile growthProfile;
+        [SerializeField] private Vector3 originalScale;
+        public Vector3 OriginalScale
+        {
+            get
+            {
+                if (originalScale == Vector3.zero) originalScale = transform.lossyScale;
+                return originalScale;
+            }
+        }
+        public void SetOriginalScale(Vector3 scale) => originalScale = scale;
+        public float SizeMultiplier
+        {
+            get
+            {
+                Vector3 baseline = OriginalScale;
+                Vector3 current = transform.lossyScale;
+                return Mathf.Max(Mathf.Abs(current.x) / Mathf.Max(.0001f, Mathf.Abs(baseline.x)),
+                    Mathf.Abs(current.y) / Mathf.Max(.0001f, Mathf.Abs(baseline.y)),
+                    Mathf.Abs(current.z) / Mathf.Max(.0001f, Mathf.Abs(baseline.z)));
+            }
+        }
         public ItemKind Kind => kind;
         public int Generation => generation;
         public int BaseValue => baseValue;
@@ -77,6 +98,7 @@ namespace WhatTheFarm.Prototype
 
         public void Configure(ItemKind kind, int generation, int baseValue)
         {
+            if (originalScale == Vector3.zero) originalScale = transform.lossyScale;
             this.kind = kind;
             this.generation = generation;
             this.baseValue = baseValue;

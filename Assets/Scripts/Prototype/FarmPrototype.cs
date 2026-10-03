@@ -10,6 +10,9 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private bool buildArenaAtRuntime = true;
         [SerializeField] private Transform playerSpawnPoint;
         [SerializeField, Min(.1f)] private float tillingRadius = .8f;
+        [SerializeField, Min(.1f)] private float wateringRadius = .8f;
+        public float TillingRadiusFor(FarmItem tool) => tillingRadius * (tool != null ? tool.SizeMultiplier : 1);
+        public float WateringRadiusFor(FarmItem tool) => wateringRadius * (tool != null ? tool.SizeMultiplier : 1);
         [SerializeField, Min(0)] private int startingGold;
         [SerializeField, Range(1, 100)] private float waterPerUse = 25;
         [SerializeField] private PlantGrowthProfile defaultGrowthProfile;
@@ -230,10 +233,10 @@ namespace WhatTheFarm.Prototype
             return item;
         }
 
-        public bool TryTill(SoilSurface soil, Vector3 point)
+        public bool TryTill(SoilSurface soil, Vector3 point, FarmItem tool = null)
         {
             if (soil == null) return false;
-            if (soil.Till(point, tillingRadius, dryPlotMaterial, wetPlotMaterial) == null)
+            if (soil.Till(point, TillingRadiusFor(tool), dryPlotMaterial, wetPlotMaterial) == null)
             {
                 SetMessage("This ground is already tilled.");
                 return false;
@@ -320,6 +323,16 @@ namespace WhatTheFarm.Prototype
             SetMessage($"Water amount: {plot.WaterAmount:0}/100. Water again to increase it.");
         }
 
+        public int TryWater(SoilSurface soil, Vector3 point, FarmItem tool)
+        {
+            if (soil == null) return 0;
+            float radius = WateringRadiusFor(tool);
+            int count = soil.WaterArea(point, radius, waterPerUse);
+            SetMessage(count > 0 ? $"Watered {count} plant(s) in a {radius:0.00}m radius." :
+                "No plants needing water within range.");
+            return count;
+        }
+
         public void SetMessage(string text)
         {
             message = text;
@@ -340,6 +353,8 @@ namespace WhatTheFarm.Prototype
 
             string hand = player.HeldItem == null ? "Empty" :
                 $"{player.HeldItem.DisplayName} ({player.HeldItem.Value} gold)";
+            if (player.HeldItem != null && (player.HeldItem.Kind == ItemKind.Tool || player.HeldItem.Kind == ItemKind.WateringCan))
+                hand += $" | size x{player.HeldItem.SizeMultiplier:0.00} | radius {(player.HeldItem.Kind == ItemKind.Tool ? TillingRadiusFor(player.HeldItem) : WateringRadiusFor(player.HeldItem)):0.00}m";
             GUI.Box(new Rect(14f, 180f, 490f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
             GUI.Box(new Rect(Screen.width - 190, 14, 176, 38), $"Gold: {Gold}");
             if (Time.time < dialogueUntil)
