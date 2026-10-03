@@ -20,7 +20,16 @@ namespace WhatTheFarm.Prototype
         public bool WasThrown { get; private set; }
         public bool IsSold { get; private set; }
 
-        public void MarkHeld() => WasThrown = false;
+        private System.Action refillStock;
+        public void SetStockRefill(System.Action refill) => refillStock = refill;
+
+        public void MarkHeld()
+        {
+            WasThrown = false;
+            System.Action refill = refillStock;
+            refillStock = null;
+            refill?.Invoke();
+        }
         public void MarkThrown() => WasThrown = true;
 
         public bool ClaimSale()

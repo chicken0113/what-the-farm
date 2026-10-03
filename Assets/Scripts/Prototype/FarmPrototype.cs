@@ -74,12 +74,12 @@ namespace WhatTheFarm.Prototype
             if (buildArenaAtRuntime)
                 CreateArena();
             CreatePlayer();
-            CreateItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
-            CreateItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
-            CreateItem(ItemKind.Seed, 0, 10, new Vector3(0f, 0.45f, -7f));
-            CreateItem(ItemKind.Seed, 0, 10, new Vector3(1f, 0.45f, -7f));
-            CreateItem(ItemKind.Seed, 0, 10, new Vector3(2f, 0.45f, -7f));
-            CreateItem(ItemKind.Curio, 0, 6, new Vector3(3.2f, 0.55f, -7f));
+            CreateRestockingItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
+            CreateRestockingItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
+            CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(0f, 0.45f, -7f));
+            CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(1f, 0.45f, -7f));
+            CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(2f, 0.45f, -7f));
+            CreateRestockingItem(ItemKind.Curio, 0, 6, new Vector3(3.2f, 0.55f, -7f));
         }
 
         private void EnsureMaterials()
@@ -164,6 +164,16 @@ namespace WhatTheFarm.Prototype
             block.transform.position = position;
             block.transform.localScale = scale;
             block.GetComponent<Renderer>().material = material;
+        }
+
+        public FarmItem CreateRestockingItem(ItemKind kind, int generation, int baseValue, Vector3 position)
+        {
+            FarmItem item = CreateItem(kind, generation, baseValue, position);
+            item.SetStockRefill(() =>
+            {
+                if (this != null) CreateRestockingItem(kind, generation, baseValue, position);
+            });
+            return item;
         }
 
         public FarmItem CreateItem(ItemKind kind, int generation, int baseValue, Vector3 position)
