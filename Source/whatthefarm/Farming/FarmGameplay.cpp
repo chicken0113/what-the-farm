@@ -81,7 +81,9 @@ int32 AFarmSoil::Till(FVector Point, float Radius)
         FVector Edge=Point+FVector(FMath::Cos(Angle)*Radius, FMath::Sin(Angle)*Radius, 0);
         Edge.X=FMath::Clamp(Edge.X,Box.Min.X,Box.Max.X); Edge.Y=FMath::Clamp(Edge.Y,Box.Min.Y,Box.Max.Y);
         Vertices.Add(Edge-Point); Normals.Add(FVector::UpVector);
-        if(I<Segments) { Triangles.Add(0); Triangles.Add(I+1); Triangles.Add(I+2); }
+        // Unreal treats clockwise triangles as front-facing. The old winding
+        // faced down, so a single-sided soil material disappeared from above.
+        if(I<Segments) { Triangles.Add(0); Triangles.Add(I+2); Triangles.Add(I+1); }
     }
     Patch->CreateMeshSection(0,Vertices,Triangles,Normals,{}, {}, {},false);
     Plot.Visual=Patch; int32 Index=Plots.Add(Plot); RefreshPlot(Index); return Index;
