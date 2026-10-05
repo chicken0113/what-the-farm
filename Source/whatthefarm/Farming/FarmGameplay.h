@@ -107,12 +107,13 @@ public:
     void Throw(FVector Position, FVector Velocity);
 private:
     FVector PlantScale = FVector::OneVector;
-    FVector SupplyPosition;
+    FTransform SupplyTransform;
     float SoilHeight = 0;
     float GrowthProgress = 0;
     float Duration = 4;
     bool Held = false;
     void AlignOnSoil();
+    void SetLooseCollision();
 };
 
 UCLASS(Blueprintable)

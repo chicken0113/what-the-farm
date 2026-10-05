@@ -143,16 +143,27 @@ void AFarmItem::Configure(EFarmKind NewKind)
     const TCHAR* Shape=Kind==EFarmKind::Seed ? TEXT("/Engine/BasicShapes/Sphere.Sphere") :
         Kind==EFarmKind::Hoe || Kind==EFarmKind::WateringCan ? TEXT("/Engine/BasicShapes/Cylinder.Cylinder") : TEXT("/Engine/BasicShapes/Cube.Cube");
     Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,Shape));
-    SetActorScale3D(Kind==EFarmKind::Hoe ? FVector(.17,.17,1) : Kind==EFarmKind::WateringCan ? FVector(.36,.36,.56) : FVector(.5));
+    SetActorScale3D((Kind==EFarmKind::Hoe ? FVector(.17,.17,1) : Kind==EFarmKind::WateringCan ? FVector(.36,.36,.56) : FVector(.5))*.3);
     OriginalScale=GetActorScale3D();
+    SupplyTransform=GetActorTransform();
     Farm::Tint(Mesh,Kind==EFarmKind::Seed ? FLinearColor(.9,.7,.1) : Kind==EFarmKind::Hoe ? FLinearColor(.4,.65,.8) :
         Kind==EFarmKind::WateringCan ? FLinearColor(.1,.6,.9) : FLinearColor(.45,.4,.5));
 }
 
 void AFarmItem::BeginPlay()
 {
-    Super::BeginPlay(); SupplyPosition=GetActorLocation(); OriginalScale=GetActorScale3D();
+    Super::BeginPlay(); SupplyTransform=GetActorTransform(); OriginalScale=GetActorScale3D();
+    SetLooseCollision();
     Mesh->SetSimulatePhysics(!RestockOnPickup);
+}
+
+void AFarmItem::SetLooseCollision()
+{
+    // Keep ground physics and the pickup ray, without blocking the player or other items.
+    Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    Mesh->SetCollisionResponseToChannel(ECC_Pawn,ECR_Ignore);
+    Mesh->SetCollisionResponseToChannel(ECC_PhysicsBody,ECR_Ignore);
+    Mesh->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
 }
 
 void AFarmItem::EndPlay(const EEndPlayReason::Type Reason)
@@ -188,6 +199,7 @@ bool AFarmItem::PlantAt(AFarmSoil* Soil, FVector Point)
     if(Point.X<Bounds.Min.X || Point.X>Bounds.Max.X || Point.Y<Bounds.Min.Y || Point.Y>Bounds.Max.Y) return false;
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     Mesh->SetSimulatePhysics(false); SetActorLocation(Point);
+    Mesh->SetCollisionProfileName(TEXT("PhysicsActor"));
     Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly); SetActorHiddenInGame(false);
     HomeSoil=Soil; PlotIndex=Index; SoilHeight=Point.Z; PlantScale=GetActorScale3D();
     Planted=true; Mature=false; Held=false; Thrown=false; RestockOnPickup=false; GrowthProgress=0;
@@ -215,7 +227,7 @@ void AFarmItem::Hit(float Damage)
     if(!Mature || Damage<=0) return;
     Health-=Damage; if(Health>0) return;
     Mature=false; Planted=false; if(Kind==EFarmKind::Seed) Kind=EFarmKind::Produce;
-    AddActorWorldOffset(FVector(0,0,50)); Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    AddActorWorldOffset(FVector(0,0,50)); SetLooseCollision();
     Mesh->SetSimulatePhysics(true); Mesh->SetEnableGravity(true);
     // The grown actor is the drop; mesh, dimensions and original tool reference stay intact.
 }
@@ -227,11 +239,13 @@ void AFarmItem::Pickup(USceneComponent* Hand)
     if(RestockOnPickup)
     {
         FActorSpawnParameters Params; Params.Template=this; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        auto* Replacement=GetWorld()->SpawnActor<AFarmItem>(GetClass(),SupplyPosition,GetActorRotation(),Params);
+        Params.TransformScaleMethod=ESpawnActorScaleMethod::OverrideRootScale;
+        // Apply the complete display transform before BeginPlay caches it for the next refill.
+        auto* Replacement=GetWorld()->SpawnActor<AFarmItem>(GetClass(),SupplyTransform,Params);
         if(Replacement)
         {
             Replacement->SetActorScale3D(OriginalScale); Replacement->OriginalScale=OriginalScale;
-            Replacement->Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            Replacement->SetLooseCollision();
             Replacement->Mesh->SetSimulatePhysics(false); Replacement->RestockOnPickup=true;
         }
         RestockOnPickup=false;
@@ -245,7 +259,7 @@ void AFarmItem::Throw(FVector Position, FVector Velocity)
 {
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform); SetActorLocation(Position);
     SetActorHiddenInGame(false); Held=false; Thrown=true;
-    Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); Mesh->SetSimulatePhysics(true);
+    SetLooseCollision(); Mesh->SetSimulatePhysics(true);
     Mesh->SetEnableGravity(true); Mesh->SetPhysicsLinearVelocity(Velocity);
 }
 

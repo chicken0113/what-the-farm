@@ -54,7 +54,8 @@ def tick(delta):
                 assert len(player.inventory)==12
                 player.set_actor_location(ue.Vector(0,-950,100),False,False)
                 state["hoe"] = next(a for a in items if a.kind==ue.FarmKind.HOE and a.restock_on_pickup)
-                aim(player,state["hoe"].get_actor_location())
+                state["hoe_display"] = (state["hoe"].get_actor_location(),state["hoe"].get_actor_rotation(),state["hoe"].get_actor_scale3d())
+                aim(player,state["hoe"].get_actor_bounds(False)[0])
             elif step==1:
                 player.interact()
                 assert player.inventory[0]==state["hoe"], "E did not pick up hoe"
@@ -106,6 +107,22 @@ def tick(delta):
                 player.toggle_inventory()
                 player.toggle_inventory()
                 assert len(ue.GameplayStatics.get_all_actors_of_class(world,ue.FarmItem))==9
+                player.select(3)
+                for cycle in range(4):
+                    supply=next(a for a in ue.GameplayStatics.get_all_actors_of_class(world,ue.FarmItem) if a.kind==ue.FarmKind.HOE and a.restock_on_pickup)
+                    position,rotation,scale=state["hoe_display"]
+                    delta=supply.get_actor_location()-position
+                    assert max(abs(delta.x),abs(delta.y),abs(delta.z))<.01,"Refill position drifted"
+                    current=supply.get_actor_scale3d()-scale
+                    assert max(abs(current.x),abs(current.y),abs(current.z))<.001,"Refill size drifted"
+                    current=supply.get_actor_rotation()
+                    assert max(abs(current.pitch-rotation.pitch),abs(current.yaw-rotation.yaw),abs(current.roll-rotation.roll))<.01,"Refill rotation drifted"
+                    assert abs(supply.size_multiplier()-1)<.001
+                    assert player.pickup_item(supply)
+                    player.drop()
+                    supply.destroy_actor()
+                player.select(1)
+                ue.log("FARM_REFILL_TRANSFORMS_SUCCESS cycles=4")
                 merchant=ue.GameplayStatics.get_all_actors_of_class(world,ue.FarmMerchant)[0]
                 player.set_actor_location(merchant.get_actor_location()+ue.Vector(0,-250,5),False,False)
                 aim(player,merchant.get_actor_location())

@@ -30,6 +30,8 @@ Unity 시제품의 농사, 인벤토리, 성장, 수확, 재고 보충, NPC 판�
 - **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 캐릭터 모델은 임시 정적 모델이며 애니메이션은 아직 연결하지 않았습니다.
 - 첫 맵의 나무·바위·괭이·NPC에 기존 에셋 일부를 가져왔습니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
 
+아이템 기본 길이는 초기 시제품의 30%로 줄였습니다. 바닥의 아이템은 플레이어와 다른 아이템을 밀지 않으며, 바닥 물리와 E로 줍는 조준 판정은 유지합니다. 공급품은 처음 배치한 위치·회전·크기로 재입고됩니다.
+
 ## 언리얼 빌드와 검증
 
 Editor 타깃: `whatthefarmEditor Win64 Development`. 에디터를 닫고 `Build.bat`에 프로젝트 절대 경로와 `-WaitMutex -NoHotReloadFromIDE -NoUBA -MaxParallelActions=1`을 전달하면 메모리 사용을 제한해 빌드할 수 있습니다.

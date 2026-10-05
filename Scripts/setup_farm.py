@@ -158,7 +158,9 @@ for name, kind, scale, value, shape, mat in [
         defaults.set_editor_property("growth_profile", profiles[name])
         defaults.get_editor_property("mesh").set_static_mesh(shape)
         defaults.get_editor_property("mesh").set_material(0, mat)
-        defaults.get_editor_property("mesh").set_relative_scale3d(ue.Vector(*scale))
+        defaults.get_editor_property("mesh").set_relative_scale3d(ue.Vector(*scale)*.3)
+        if name == "Seed":
+            library.set_metadata_tag(bp,"WTFSmallItems30","1")
         save(bp)
 
 map_exists = library.does_asset_exist(MAP)
@@ -244,9 +246,11 @@ if needs_map:
                 elif ext.y>ext.z:
                     item.set_actor_rotation(ue.Rotator(0,0,90),False)
                 origin, ext = item.get_actor_bounds(False)
-            height = 90 if name=="Hoe" else 50
+            height = 27 if name=="Hoe" else 15
             item.set_actor_scale3d(ue.Vector(*(height/max(.01,ext.z*2),)*3))
             mesh.set_material(0,weapon_mat if name=="Hoe" else nature_mat)
+        origin, ext = item.get_actor_bounds(False)
+        item.set_actor_location(item.get_actor_location()+ue.Vector(0,0,3.5-(origin.z-ext.z)),False,False)
     spawn(ue.PlayerStart,"Farmer Spawn",(0,-950,100),rotation=(0,90,0))
     sun=spawn(ue.DirectionalLight,"Sun",(0,0,800),rotation=(-55,-35,0))
     sun.light_component.set_editor_property("intensity",3)

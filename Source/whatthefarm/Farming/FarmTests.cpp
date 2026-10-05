@@ -87,4 +87,39 @@ bool FFarmWaterTest::RunTest(const FString&)
     TestTrue(TEXT("Overlapping growth never destroys neighbours"),IsValid(Crops[1]) && IsValid(Crops[2]));
     GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFarmSupplyTest,"WhatTheFarm.Farming.SupplyAndCollision",EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FFarmSupplyTest::RunTest(const FString&)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);
+    GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+    World->InitializeActorsForPlay(FURL()); World->BeginPlay();
+    // This isolated world has no game mode to dispatch StartPlay for spawned actors.
+    World->SetBegunPlay(true);
+    auto* Player=World->SpawnActor<AFarmCharacter>(FVector(0,-1000,150),FRotator::ZeroRotator);
+    if(!TestNotNull(TEXT("Player spawned"),Player)) { GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false; }
+    Player->Inventory.SetNum(1);
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    Params.TransformScaleMethod=ESpawnActorScaleMethod::OverrideRootScale;
+    const FTransform Display(FRotator(90,30,0),FVector(320,-700,25),FVector(.12,.08,.24));
+    auto* Supply=World->SpawnActor<AFarmItem>(AFarmItem::StaticClass(),Display,Params);
+    Supply->RestockOnPickup=true; Supply->Mesh->SetSimulatePhysics(false);
+    for(int32 Cycle=0; Cycle<4; ++Cycle)
+    {
+        AddInfo(FString::Printf(TEXT("Refill cycle %d actual=%s expected=%s"),Cycle,*Supply->GetActorTransform().ToString(),*Display.ToString()));
+        TestTrue(TEXT("Refill stays at its display location/rotation/size"),Supply->GetActorTransform().Equals(Display,.001));
+        TestEqual(TEXT("Loose item does not block player"),Supply->Mesh->GetCollisionResponseToChannel(ECC_Pawn),ECR_Ignore);
+        TestEqual(TEXT("Loose items do not push each other"),Supply->Mesh->GetCollisionResponseToChannel(ECC_PhysicsBody),ECR_Ignore);
+        TestEqual(TEXT("Pickup trace remains available"),Supply->Mesh->GetCollisionResponseToChannel(ECC_Visibility),ECR_Block);
+        TestEqual(TEXT("Floor still supports item"),Supply->Mesh->GetCollisionResponseToChannel(ECC_WorldStatic),ECR_Block);
+        TestTrue(TEXT("Repeated pickup succeeds"),Player->PickupItem(Supply));
+        Supply->Throw(FVector(0,0,150),FVector::ZeroVector);
+        TestEqual(TEXT("Thrown item still ignores player"),Supply->Mesh->GetCollisionResponseToChannel(ECC_Pawn),ECR_Ignore);
+        Player->Inventory[0]=nullptr;
+        Supply->Destroy(); Supply=nullptr;
+        for(TActorIterator<AFarmItem> It(World); It; ++It) if(It->RestockOnPickup) { Supply=*It; break; }
+        if(!TestNotNull(TEXT("Replacement exists"),Supply)) break;
+        TestTrue(TEXT("Refilled baseline keeps tool ratio at one"),FMath::IsNearlyEqual(Supply->SizeMultiplier(),1.f));
+    }
+    GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return true;
+}
 #endif
