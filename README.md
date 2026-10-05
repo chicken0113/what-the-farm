@@ -6,9 +6,37 @@
 
 1. `whatthefarm.uproject`를 Unreal Engine **5.7.4**로 엽니다.
 2. C++ 모듈을 다시 빌드할지 묻는 창이 나오면 빌드합니다. Visual Studio의 C++ 게임 개발 도구와 Windows SDK가 필요합니다.
-3. 기본 맵 `Content/FirstPerson/Lvl_FirstPerson`에서 Play를 누르면 생성한 1인칭 템플릿을 확인할 수 있습니다.
+3. 기본 맵 `Content/Farm/Maps/FirstFarm`에서 Play를 누릅니다. 기존 First Person 템플릿도 그대로 보관합니다.
 
-현재 언리얼 프로젝트는 사용자가 생성한 **C++ First Person 템플릿**입니다. Unity의 농사, 인벤토리, 성장, 판매 기능은 아직 언리얼로 이식하지 않았습니다.
+Unity 시제품의 농사, 인벤토리, 성장, 수확, 재고 보충, NPC 판매를 C++와 편집 가능한 Blueprint/Data Asset으로 이식했습니다. 현재는 **로컬 1인 시제품**입니다. 멀티플레이, 유료 상점, 저장/불러오기, 지역 이동은 아직 구현하지 않았습니다.
+
+## 언리얼 시제품 조작과 설정
+
+| 키 | 동작 |
+| --- | --- |
+| WASD / 마우스 / Shift / Space | 이동 / 시점 / 달리기 / 점프 |
+| E | 아이템 줍기 / 선택 아이템 심기 / NPC 대화 |
+| 마우스 왼쪽 | 괭이로 갈기 / 물 주기 / 다 자란 대상 공격 |
+| Q | 선택 아이템 던지기. 판매 NPC에게 던지면 골드 지급 |
+| 1~9 / 휠 | 핫바 선택 |
+| Tab | 인벤토리 열기/닫기. 두 칸을 차례로 클릭해 이동/교환 |
+
+시작 위치 앞에 괭이, 물뿌리개, 씨앗, 돌이 있습니다. 가져가면 공급품이 즉시 보충됩니다. 괭이로 **길 옆 지면**을 갈고 씨앗을 선택한 뒤 갈린 부분을 보고 E로 심으세요. 갈린 영역 하나에 하나만 심으며 조준한 위치에 놓입니다. 물을 주면 성장하고 다 자란 대상은 도망갑니다. 때려 수확한 뒤에도 모델과 커진 크기는 유지됩니다. 다시 심으면 가치와 체력이 증가합니다. 성장으로 겹친 식물은 삭제하지 않습니다.
+
+- **칸 수/도구 범위:** `Content/Farm/Blueprints/BP_Farmer`의 Class Defaults에서 `Inventory Slots`, `Hoe Radius`, `Water Radius`, `Water Per Use`를 설정합니다. 거리 단위는 cm입니다. 처음 9칸까지 핫바로 사용합니다. 커진 도구의 범위는 원래 크기 대비 배율에 정비례합니다.
+- **개별 성장 조건:** `Content/Farm/Growth`의 Data Asset에서 기본 성장률, 빛/물 범위, 선호 땅, 각 보너스, 성장 시간과 크기 배율을 설정합니다. 환경 보너스는 **최종 크기**에 적용됩니다. `100 + 빛 보너스 + 물 보너스 + 땅 보너스`가 150이면 기준 완성 크기의 1.5배입니다.
+- **새 아이템:** `FarmItem` 기반 Blueprint를 만들고 Mesh의 Static Mesh, Kind, Base Value, Growth Profile을 지정합니다. 모델과 크기를 유지한 채 심기·성장·수확·판매 시스템을 사용합니다. `Restock On Pickup`을 켜면 공급품으로 사용합니다.
+- **환경:** 맵의 `FarmSoil`에서 `Soil Type`, `Light Amount`, `Initial Water`, `Use Sunlight`, `Shade Light`를 설정합니다. Soil Type은 임의 이름이며 성장 설정의 Preferred Soils와 일치시키면 됩니다. Sunlight를 사용하면 Directional Light 방향으로 장애물 그늘을 확인합니다. 수동 수치는 Sunlight를 끄고 사용합니다.
+- **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 캐릭터 모델은 임시 정적 모델이며 애니메이션은 아직 연결하지 않았습니다.
+- 첫 맵의 나무·바위·괭이·NPC에 기존 에셋 일부를 가져왔습니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
+
+## 언리얼 빌드와 검증
+
+Editor 타깃: `whatthefarmEditor Win64 Development`. 에디터를 닫고 `Build.bat`에 프로젝트 절대 경로와 `-WaitMutex -NoHotReloadFromIDE -NoUBA -MaxParallelActions=1`을 전달하면 메모리 사용을 제한해 빌드할 수 있습니다.
+
+Unreal Automation의 `WhatTheFarm.Farming`에는 성장/수확/재식재/인벤토리/재고/판매와 크기별 도구 범위 검사가 있습니다. `Scripts/verify_farm.py`는 실제 첫 맵에서 PIE 조작과 물리 던지기 판매를 확인합니다. `UnrealEditor.exe <프로젝트> -ExecutePythonScript=<스크립트 절대 경로> -unattended -d3d11 -nosound`로 실행합니다.
+
+생성된 맵과 에셋은 Git에 포함되어 있어 생성 스크립트 실행이 필요하지 않습니다. 초기 생성이 필요할 때만 `Scripts/setup_farm.py`를 같은 방식으로 실행하세요. 선택 사항인 `WTF_LEGACY_ASSETS` 환경변수에 기존 Unity Assets 경로를 지정하면 모델을 가져옵니다. 기존 맵과 설정은 재생성으로 덮어쓰지 않습니다.
 
 - 작업 폴더: `C:\Users\MSI\Documents\Unreal Projects\whatthefarm`
 - 원격 저장소: https://github.com/chicken0113/what-the-farm

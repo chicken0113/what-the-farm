@@ -21,7 +21,7 @@ public class whatthefarm : ModuleRules
 			"Slate"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] { "ProceduralMeshComponent" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"whatthefarm",
