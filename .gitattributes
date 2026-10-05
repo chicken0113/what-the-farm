@@ -26,3 +26,5 @@
 *.mp3 binary
 *.ogg binary
 *.mp4 binary
+*.uasset binary
+*.umap binary

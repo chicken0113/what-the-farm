@@ -1,6 +1,23 @@
-# 농사
+# What The Farm
 
-Unity 6 기반 3D 게임 프로젝트입니다. 기본 3D 템플릿과 Universal Render Pipeline(URP)을 사용합니다.
+현재 개발 대상은 **Unreal Engine 5.7** 프로젝트 `whatthefarm.uproject`입니다. 기존 Unity 시제품은 같은 저장소의 `Assets`, `Packages`, `ProjectSettings`에 보관합니다.
+
+## 언리얼 프로젝트 열기
+
+1. `whatthefarm.uproject`를 Unreal Engine **5.7.4**로 엽니다.
+2. C++ 모듈을 다시 빌드할지 묻는 창이 나오면 빌드합니다. Visual Studio의 C++ 게임 개발 도구와 Windows SDK가 필요합니다.
+3. 기본 맵 `Content/FirstPerson/Lvl_FirstPerson`에서 Play를 누르면 생성한 1인칭 템플릿을 확인할 수 있습니다.
+
+현재 언리얼 프로젝트는 사용자가 생성한 **C++ First Person 템플릿**입니다. Unity의 농사, 인벤토리, 성장, 판매 기능은 아직 언리얼로 이식하지 않았습니다.
+
+- 작업 폴더: `C:\Users\MSI\Documents\Unreal Projects\whatthefarm`
+- 원격 저장소: https://github.com/chicken0113/what-the-farm
+- `Config`, `Content`, `Source`, `.uproject`는 Git에 저장합니다. `Binaries`, `Intermediate`, `Saved`, 캐시와 Visual Studio 생성 파일은 저장하지 않습니다.
+- 이 작업 폴더는 Git의 선택적 체크아웃으로 Unity 폴더를 생략합니다. 원격 저장소와 Git 이력에는 Unity 파일이 그대로 남습니다. 일반적으로 저장소를 새로 복제하면 양쪽 프로젝트가 모두 포함됩니다.
+
+## 기존 Unity 시제품
+
+아래 내용은 이전 Unity 프로토타입의 사용 안내입니다.
 
 ## 시작하기
 

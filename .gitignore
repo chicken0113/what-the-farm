@@ -33,3 +33,13 @@ Thumbs.db
 
 # Local setup logs
 unity-setup.log
+
+# Unreal-generated files (project is at the repository root)
+/Binaries/
+/Intermediate/
+/Saved/
+/DerivedDataCache/
+/.idea/
+*.sdf
+*.opensdf
+*.VC.opendb
