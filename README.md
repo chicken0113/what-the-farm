@@ -27,8 +27,9 @@ Unity 시제품의 농사, 인벤토리, 성장, 수확, 재고 보충, NPC 판�
 - **개별 성장 조건:** `Content/Farm/Growth`의 Data Asset에서 기본 성장률, 빛/물 범위, 선호 땅, 각 보너스, 성장 시간과 크기 배율을 설정합니다. 환경 보너스는 **최종 크기**에 적용됩니다. `100 + 빛 보너스 + 물 보너스 + 땅 보너스`가 150이면 기준 완성 크기의 1.5배입니다.
 - **새 아이템:** `FarmItem` 기반 Blueprint를 만들고 Mesh의 Static Mesh, Kind, Base Value, Growth Profile을 지정합니다. 모델과 크기를 유지한 채 심기·성장·수확·판매 시스템을 사용합니다. `Restock On Pickup`을 켜면 공급품으로 사용합니다.
 - **환경:** 맵의 `FarmSoil`에서 `Soil Type`, `Light Amount`, `Initial Water`, `Use Sunlight`, `Shade Light`를 설정합니다. Soil Type은 임의 이름이며 성장 설정의 Preferred Soils와 일치시키면 됩니다. Sunlight를 사용하면 Directional Light 방향으로 장애물 그늘을 확인합니다. 수동 수치는 Sunlight를 끄고 사용합니다.
-- **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 캐릭터 모델은 임시 정적 모델이며 애니메이션은 아직 연결하지 않았습니다.
-- 첫 맵의 나무·바위·괭이·NPC에 기존 에셋 일부를 가져왔습니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
+- **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 자식 액터 `Buyer Visual - Unreal Farmer`는 새 농부 팩의 Skeletal Mesh와 반복 대기 애니메이션을 사용합니다.
+- 괭이는 `3D_LOW_POLY_FarmerPack/Props/SM_Hoe`로 교체했으며 기본 높이 27cm를 유지합니다. `BP_Hoe` 기본 모델과 맵의 공급품 모두 같은 모델을 사용합니다. 판매 NPC도 이 팩의 농부 캐릭터로 교체했습니다. 대응 모델이 없는 나무·바위는 기존 에셋을 사용합니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
+- `Scripts/replace_legacy_models.py`는 기존 맵에서 대응 모델을 교체하는 일회성 스크립트입니다. `Scripts/verify_replaced_models.py`는 괭이 크기와 NPC 애니메이션을 PIE에서 확인합니다.
 
 아이템 기본 길이는 초기 시제품의 30%로 줄였습니다. 바닥의 아이템은 플레이어와 다른 아이템을 밀지 않으며, 바닥 물리와 E로 줍는 조준 판정은 유지합니다. 공급품은 처음 배치한 위치·회전·크기로 재입고됩니다.
 

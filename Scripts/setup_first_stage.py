@@ -39,6 +39,7 @@ if not any(isinstance(a,ue.FarmFirstStage) for a in placed):
     centre=spawn(ue.StaticMeshActor,"Original Farm Area - Visual Only",(0,0,.25),(26,26,.005))
     centre.static_mesh_component.set_static_mesh(assets.load_asset("/Engine/BasicShapes/Cube"))
     centre.static_mesh_component.set_material(0,assets.load_asset("/Game/Farm/Materials/M_Ground"))
+    centre.static_mesh_component.set_collision_profile_name("NoCollision")
     centre.static_mesh_component.set_collision_enabled(ue.CollisionEnabled.NO_COLLISION)
     director=spawn(ue.FarmFirstStage,"First Stage - Old Fence Boundary",(0,0,0))
     director.set_editor_property("monster_class",bp.generated_class())
