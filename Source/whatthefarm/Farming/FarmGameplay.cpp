@@ -1,4 +1,7 @@
 #include "FarmGameplay.h"
+#include "FarmStage.h"
+#include "FarmTravel.h"
+#include "GameFramework/PlayerStart.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -325,7 +328,9 @@ AFarmCharacter::AFarmCharacter()
 }
 void AFarmCharacter::BeginPlay()
 {
-    Super::BeginPlay(); Inventory.SetNum(FMath::Max(1,InventorySlots)); Notify(TEXT("Pick up the hoe, till the ground, plant and water."));
+    Super::BeginPlay(); Inventory.SetNum(FMath::Max(1,InventorySlots)); Health=MaxHealth;
+    Notify(TEXT("Pick up the hoe, till the ground, plant and water."));
+    if(auto* Travel=Cast<UFarmGameInstance>(GetGameInstance())) Travel->Restore(this);
     if(auto* PC=Cast<APlayerController>(Controller)) PC->SetInputMode(FInputModeGameOnly());
 }
 void AFarmCharacter::SetupPlayerInputComponent(UInputComponent* Input)
@@ -367,6 +372,7 @@ void AFarmCharacter::Interact()
 {
     if(InventoryOpen) return;
     FHitResult Hit; if(!Aim(Hit)) return;
+    if(auto* Exit=Cast<AFarmStageExit>(Hit.GetActor())) { Exit->Travel(this); return; }
     if(auto* Merchant=Cast<AFarmMerchant>(Hit.GetActor())) { Merchant->Talk(this); return; }
     if(auto* Item=Cast<AFarmItem>(Hit.GetActor())) if(!Item->Planted && !Item->Mature) { PickupItem(Item); return; }
     if(!HeldItem()) { Notify(TEXT("Select an item to plant.")); return; }
@@ -401,6 +407,7 @@ void AFarmCharacter::Use()
     }
     if(GetWorld()->GetTimeSeconds()<NextUse) return; NextUse=GetWorld()->GetTimeSeconds()+.42;
     FHitResult Hit; if(!Aim(Hit)) return; AFarmItem* Tool=HeldItem(); auto* Plant=Cast<AFarmItem>(Hit.GetActor());
+    if(auto* Monster=Cast<AFarmStageMonster>(Hit.GetActor())) { Monster->Hit(Tool && Tool->Kind==EFarmKind::Hoe ? 2*Tool->SizeMultiplier() : 1); return; }
     if(Plant && Tool && Tool->Kind==EFarmKind::WateringCan && Plant->Planted)
     {
         int32 Count=Plant->HomeSoil->WaterArea(Plant->GetActorLocation(),WaterRadius*Tool->SizeMultiplier(),WaterPerUse);
@@ -417,6 +424,18 @@ void AFarmCharacter::Use()
         int32 Count=Soil->WaterArea(Hit.ImpactPoint,WaterRadius*Tool->SizeMultiplier(),WaterPerUse);
         Notify(FString::Printf(TEXT("Watered %d plant(s)."),Count));
     }
+}
+void AFarmCharacter::ReceiveMonsterDamage(float Damage)
+{
+    if(Damage<=0) return;
+    Health=FMath::Max(0.f,Health-Damage);
+    Notify(FString::Printf(TEXT("Guardian hit! Health %.0f / %.0f"),Health,MaxHealth));
+    if(Health>0) return;
+    Health=MaxHealth;
+    GetCharacterMovement()->StopMovementImmediately();
+    for(TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
+    { SetActorLocation(It->GetActorLocation(),false,nullptr,ETeleportType::TeleportPhysics); break; }
+    Notify(TEXT("Knocked out. Returned to the farm; your items are kept."));
 }
 void AFarmCharacter::ToggleInventory()
 {
@@ -450,11 +469,18 @@ void AFarmHUD::DrawHUD()
     DrawText(TEXT("WASD move | Shift sprint | E pickup / plant / talk | Q throw"),FLinearColor::White,20,48);
     DrawText(TEXT("Left click: till / water / harvest | 1-9 / wheel select | Tab inventory"),FLinearColor::White,20,68);
     DrawText(FString::Printf(TEXT("Gold: %lld"),Player->Gold),FLinearColor::Yellow,W-160,20);
+    DrawText(FString::Printf(TEXT("HP: %.0f / %.0f"),Player->Health,Player->MaxHealth),FLinearColor::White,W-160,45);
+    for(TActorIterator<AFarmFirstStage> It(GetWorld()); It; ++It)
+    {
+        DrawText(It->Cleared ? TEXT("Stage 1: exit unlocked. Purple gate + E.") : It->Spawned ? TEXT("Stage 1: defeat the guardian.") : TEXT("Stage 1: leave the original farm to find the guardian."),FLinearColor::Yellow,20,150); break;
+    }
     if(GetWorld()->GetTimeSeconds()<Player->MessageUntil) DrawText(Player->Message,FLinearColor::Yellow,20,100);
     if(auto* Item=Player->HeldItem())
         DrawText(FString::Printf(TEXT("%s | size x%.2f | value %d"),*Item->DisplayName(),Item->SizeMultiplier(),Item->Value()),FLinearColor::White,20,125);
     DrawText(TEXT("+"),FLinearColor::White,W/2-5,H/2-8);
     FHitResult Hit;
+    if(!Player->InventoryOpen && Player->Aim(Hit)) if(auto* Monster=Cast<AFarmStageMonster>(Hit.GetActor()))
+        DrawText(FString::Printf(TEXT("Farm Guardian | HP %.0f / %.0f"),Monster->Health,Monster->MaxHealth),FLinearColor::Red,W/2-130,H/2+24);
     if(!Player->InventoryOpen && Player->Aim(Hit)) if(auto* Item=Cast<AFarmItem>(Hit.GetActor()))
     {
         FString Info=Item->Mature ? FString::Printf(TEXT("%s | HP %.0f | value %d"),*Item->DisplayName(),Item->Health,Item->Value()) :

@@ -150,6 +150,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Inventory") TArray<TObjectPtr<AFarmItem>> Inventory;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Inventory") int32 SelectedSlot = 0;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Currency") int64 Gold = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat", meta=(ClampMin="1")) float MaxHealth = 100;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Combat") float Health = 100;
+    UFUNCTION(BlueprintCallable, Category="Combat") void ReceiveMonsterDamage(float Damage);
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Tools", meta=(ClampMin="1")) float HoeRadius = 80;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Tools", meta=(ClampMin="1")) float WaterRadius = 80;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Tools", meta=(ClampMin="1",ClampMax="100")) float WaterPerUse = 25;

@@ -9,10 +9,12 @@
 
 ## Development
 
+- First-stage boundary encounter is opt-in via FarmFirstStage placed in FirstFarm only. Do not add it to later stages. StageTwo is a travel placeholder; preserve carried inventory/gold and one-plant history during travel.
+
 - Implement gameplay in C++ with properties and functions exposed to the editor / Blueprints where the user needs control.
 - Preserve the game's existing design: any obtainable item can be planted; one plant per tilled area; plant at the aim point; environment affects final size; harvest retains grown size; tool range scales linearly with grown size.
 - Each individual item can be planted only once. Harvested objects retain their planting history across pickup and throw and cannot be replanted. Fresh supplies may still use a freed plot.
-- The farm prototype lives in `Source/whatthefarm/Farming` and `Content/Farm/Maps/FirstFarm`. It is local single-player; multiplayer, paid shop, persistence and region travel are not implemented.
+- The farm prototype lives in `Source/whatthefarm/Farming` and `Content/Farm/Maps/FirstFarm`. It is local single-player; multiplayer, paid shop and disk persistence are not implemented. FirstFarm has a one-off boundary encounter that unlocks travel to the placeholder StageTwo.
 - Designer settings live in `Content/Farm/Blueprints` and `Content/Farm/Growth`. Preserve edited maps/assets; the setup script is for initial generation.
 - Keep generated `Binaries`, `Intermediate`, `Saved`, and `DerivedDataCache` out of Git. Track `Config`, `Content`, `Source` and the project descriptor.
 - Build with UnrealBuildTool for `whatthefarmEditor Win64 Development` when changing C++.
