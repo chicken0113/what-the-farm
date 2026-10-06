@@ -30,6 +30,7 @@ Unity 시제품의 농사, 인벤토리, 성장, 수확, 재고 보충, NPC 판�
 - **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 자식 액터 `Buyer Visual - Unreal Farmer`는 새 농부 팩의 Skeletal Mesh와 반복 대기 애니메이션을 사용합니다.
 - 괭이는 `3D_LOW_POLY_FarmerPack/Props/SM_Hoe`로 교체했으며 기본 높이 27cm를 유지합니다. `BP_Hoe` 기본 모델과 맵의 공급품 모두 같은 모델을 사용합니다. 판매 NPC도 이 팩의 농부 캐릭터로 교체했습니다. 대응 모델이 없는 나무·바위는 기존 에셋을 사용합니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
 - `Scripts/replace_legacy_models.py`는 기존 맵에서 대응 모델을 교체하는 일회성 스크립트입니다. `Scripts/verify_replaced_models.py`는 괭이 크기와 NPC 애니메이션을 PIE에서 확인합니다.
+- **플레이어 동작:** 농부 팩의 `anim_Farmer_attack_A`를 심기·사용·공격에, `anim_Farmer_grab_medium`을 줍기에 사용합니다. 1인칭 모델의 오른손 뼈에 아이템을 연결해 함께 움직이며, 동작 후 `anim_Farmer_idle_combat`으로 돌아옵니다. `BP_Farmer` Class Defaults의 Animation 항목에서 클립과 `Action Duration`(기본 0.42초)을 변경할 수 있습니다. `First Person Arms` 컴포넌트에서 모델의 카메라 기준 위치·회전을 조절합니다. 게임 판정은 기존처럼 버튼을 누를 때 즉시 적용됩니다.
 
 아이템 기본 길이는 초기 시제품의 30%로 줄였습니다. 바닥의 아이템은 플레이어와 다른 아이템을 밀지 않으며, 바닥 물리와 E로 줍는 조준 판정은 유지합니다. 공급품은 처음 배치한 위치·회전·크기로 재입고됩니다.
 

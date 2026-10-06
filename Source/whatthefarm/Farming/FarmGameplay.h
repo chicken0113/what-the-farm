@@ -9,6 +9,8 @@
 
 class UStaticMeshComponent;
 class UCameraComponent;
+class USkeletalMeshComponent;
+class UAnimSequence;
 class USphereComponent;
 class UMeshComponent;
 class AFarmItem;
@@ -146,6 +148,14 @@ public:
     virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> Hand;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Animation") TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation") TObjectPtr<UAnimSequence> IdleAnimation;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation") TObjectPtr<UAnimSequence> SwingAnimation;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation") TObjectPtr<UAnimSequence> PickupAnimation;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation", meta=(ClampMin="0.1")) float ActionDuration = .42f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Animation") FName GripBone = TEXT("hand_r");
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Animation") FName CurrentAction;
+    void PlayAction(UAnimSequence* Animation, FName Action);
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inventory", meta=(ClampMin="1")) int32 InventorySlots = 12;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Inventory") TArray<TObjectPtr<AFarmItem>> Inventory;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Inventory") int32 SelectedSlot = 0;
@@ -172,6 +182,8 @@ public:
     void RefreshInventory();
 private:
     float NextUse = 0;
+    float ActionEnd = 0;
+    void HideFirstPersonBody();
     int32 SwapSlot = INDEX_NONE;
 };
 

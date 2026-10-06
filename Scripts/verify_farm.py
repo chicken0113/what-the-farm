@@ -76,6 +76,7 @@ def tick(delta):
                 player.interact()
                 crop=state["seed"]
                 assert crop.planted and player.inventory[1] is None
+                assert str(player.current_action)=="Plant", "Successful planting must play the swing clip"
                 assert abs(crop.get_actor_location().x-state["plot_point"].x)<1
                 player.select(2)
                 can = next(a for a in items if a.kind==ue.FarmKind.WATERING_CAN and a.restock_on_pickup)

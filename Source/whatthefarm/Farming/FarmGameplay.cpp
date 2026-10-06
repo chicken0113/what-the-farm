@@ -5,6 +5,8 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
 #include "Components/SphereComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/DirectionalLight.h"
@@ -323,12 +325,29 @@ AFarmCharacter::AFarmCharacter()
     PrimaryActorTick.bCanEverTick=true; GetCapsuleComponent()->InitCapsuleSize(34,90);
     Camera=CreateDefaultSubobject<UCameraComponent>(TEXT("Farm Camera")); Camera->SetupAttachment(GetCapsuleComponent());
     Camera->SetRelativeLocation(FVector(0,0,65)); Camera->bUsePawnControlRotation=true; Camera->FieldOfView=72;
+    FirstPersonArms=CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Arms"));
+    FirstPersonArms->SetupAttachment(Camera);
+    FirstPersonArms->SetRelativeLocation(FVector(10,0,-155));
+    FirstPersonArms->SetRelativeRotation(FRotator(0,-90,0));
+    FirstPersonArms->SetCollisionProfileName(TEXT("NoCollision"));
+    FirstPersonArms->SetOnlyOwnerSee(true); FirstPersonArms->CastShadow=false;
+    FirstPersonArms->VisibilityBasedAnimTickOption=EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
     Hand=CreateDefaultSubobject<USceneComponent>(TEXT("Held Item")); Hand->SetupAttachment(Camera);
     Hand->SetRelativeLocation(FVector(80,42,-36)); GetCharacterMovement()->MaxWalkSpeed=500;
 }
 void AFarmCharacter::BeginPlay()
 {
     Super::BeginPlay(); Inventory.SetNum(FMath::Max(1,InventorySlots)); Health=MaxHealth;
+    if(FirstPersonArms->GetSkeletalMeshAsset())
+    {
+        if(FirstPersonArms->DoesSocketExist(GripBone))
+        {
+            Hand->AttachToComponent(FirstPersonArms,FAttachmentTransformRules::SnapToTargetNotIncludingScale,GripBone);
+            Hand->SetRelativeLocation(FVector::ZeroVector); Hand->SetRelativeRotation(FRotator::ZeroRotator);
+        }
+        if(IdleAnimation) FirstPersonArms->PlayAnimation(IdleAnimation,true);
+        HideFirstPersonBody();
+    }
     Notify(TEXT("Pick up the hoe, till the ground, plant and water."));
     if(auto* Travel=Cast<UFarmGameInstance>(GetGameInstance())) Travel->Restore(this);
     if(auto* PC=Cast<APlayerController>(Controller)) PC->SetInputMode(FInputModeGameOnly());
@@ -343,6 +362,21 @@ void AFarmCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindKey(EKeys::SpaceBar,IE_Pressed,this,&AFarmCharacter::Jump);
 }
 void AFarmCharacter::Notify(const FString& Text) { Message=Text; MessageUntil=GetWorld()->GetTimeSeconds()+5; }
+void AFarmCharacter::HideFirstPersonBody()
+{
+    // Switching single-node clips reinitializes bone visibility; apply the mask afterward.
+    FirstPersonArms->HideBoneByName(TEXT("neck_01"),EPhysBodyOp::PBO_None);
+    FirstPersonArms->HideBoneByName(TEXT("thigh_l"),EPhysBodyOp::PBO_None);
+    FirstPersonArms->HideBoneByName(TEXT("thigh_r"),EPhysBodyOp::PBO_None);
+}
+void AFarmCharacter::PlayAction(UAnimSequence* Animation,FName Action)
+{
+    if(!Animation || !FirstPersonArms->GetSkeletalMeshAsset()) return;
+    CurrentAction=Action; ActionEnd=GetWorld()->GetTimeSeconds()+FMath::Max(.1f,ActionDuration);
+    FirstPersonArms->PlayAnimation(Animation,false);
+    FirstPersonArms->SetPlayRate(Animation->GetPlayLength()/FMath::Max(.1f,ActionDuration));
+    HideFirstPersonBody();
+}
 AFarmItem* AFarmCharacter::HeldItem() const { return Inventory.IsValidIndex(SelectedSlot) && IsValid(Inventory[SelectedSlot]) ? Inventory[SelectedSlot].Get() : nullptr; }
 void AFarmCharacter::RefreshInventory()
 {
@@ -366,7 +400,7 @@ bool AFarmCharacter::PickupItem(AFarmItem* Item)
     int32 Slot=Inventory.IsValidIndex(SelectedSlot) && !IsValid(Inventory[SelectedSlot]) ? SelectedSlot : INDEX_NONE;
     if(Slot==INDEX_NONE) for(int32 I=0; I<Inventory.Num(); ++I) if(!IsValid(Inventory[I])) { Slot=I; break; }
     if(Slot==INDEX_NONE) { Notify(TEXT("Inventory full. Throw an item with Q.")); return false; }
-    Item->Pickup(Hand); Inventory[Slot]=Item; RefreshInventory(); Notify(TEXT("Picked up ")+Item->DisplayName()); return true;
+    Item->Pickup(Hand); Inventory[Slot]=Item; RefreshInventory(); PlayAction(PickupAnimation,TEXT("Pickup")); Notify(TEXT("Picked up ")+Item->DisplayName()); return true;
 }
 void AFarmCharacter::Interact()
 {
@@ -381,7 +415,7 @@ void AFarmCharacter::Interact()
     if(Aim(SoilHit,true) && SoilHit.ImpactNormal.Z>=.9)
     {
         if(HeldItem()->PlantAt(Cast<AFarmSoil>(SoilHit.GetActor()),SoilHit.ImpactPoint))
-        { Inventory[SelectedSlot]=nullptr; RefreshInventory(); Notify(TEXT("Planted. Water to start growth.")); }
+        { Inventory[SelectedSlot]=nullptr; RefreshInventory(); PlayAction(SwingAnimation,TEXT("Plant")); Notify(TEXT("Planted. Water to start growth.")); }
         else Notify(TEXT("Use an empty tilled area. One plant per area."));
     }
 }
@@ -406,6 +440,7 @@ void AFarmCharacter::Use()
         return;
     }
     if(GetWorld()->GetTimeSeconds()<NextUse) return; NextUse=GetWorld()->GetTimeSeconds()+.42;
+    PlayAction(SwingAnimation,TEXT("Use"));
     FHitResult Hit; if(!Aim(Hit)) return; AFarmItem* Tool=HeldItem(); auto* Plant=Cast<AFarmItem>(Hit.GetActor());
     if(auto* Monster=Cast<AFarmStageMonster>(Hit.GetActor())) { Monster->Hit(Tool && Tool->Kind==EFarmKind::Hoe ? 2*Tool->SizeMultiplier() : 1); return; }
     if(Plant && Tool && Tool->Kind==EFarmKind::WateringCan && Plant->Planted)
@@ -449,7 +484,13 @@ void AFarmCharacter::ToggleInventory()
 }
 void AFarmCharacter::Tick(float Seconds)
 {
-    Super::Tick(Seconds); auto* PC=Cast<APlayerController>(Controller); if(!PC) return;
+    Super::Tick(Seconds);
+    if(!CurrentAction.IsNone() && GetWorld()->GetTimeSeconds()>=ActionEnd)
+    {
+        CurrentAction=NAME_None;
+        if(IdleAnimation) { FirstPersonArms->PlayAnimation(IdleAnimation,true); FirstPersonArms->SetPlayRate(1); HideFirstPersonBody(); }
+    }
+    auto* PC=Cast<APlayerController>(Controller); if(!PC) return;
     const FKey Keys[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine};
     for(int32 I=0; I<9; ++I) if(PC->WasInputKeyJustPressed(Keys[I])) Select(I);
     if(PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)) Select((SelectedSlot+Inventory.Num()-1)%Inventory.Num());
