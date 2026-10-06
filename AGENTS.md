@@ -11,6 +11,7 @@
 
 - Implement gameplay in C++ with properties and functions exposed to the editor / Blueprints where the user needs control.
 - Preserve the game's existing design: any obtainable item can be planted; one plant per tilled area; plant at the aim point; environment affects final size; harvest retains grown size; tool range scales linearly with grown size.
+- Each individual item can be planted only once. Harvested objects retain their planting history across pickup and throw and cannot be replanted. Fresh supplies may still use a freed plot.
 - The farm prototype lives in `Source/whatthefarm/Farming` and `Content/Farm/Maps/FirstFarm`. It is local single-player; multiplayer, paid shop, persistence and region travel are not implemented.
 - Designer settings live in `Content/Farm/Blueprints` and `Content/Farm/Growth`. Preserve edited maps/assets; the setup script is for initial generation.
 - Keep generated `Binaries`, `Intermediate`, `Saved`, and `DerivedDataCache` out of Git. Track `Config`, `Content`, `Source` and the project descriptor.

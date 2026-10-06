@@ -89,6 +89,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Growth") TObjectPtr<UFarmGrowthProfile> GrowthProfile;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Growth") float GrowthPercent = 100;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Growth") bool Planted = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Growth") bool HasBeenPlanted = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Growth") bool Mature = false;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Growth") float Health = 3;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Item") FVector OriginalScale = FVector::OneVector;
@@ -125,7 +126,7 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> Body;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USphereComponent> Receiver;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Merchant") FString MerchantName = "Farm Buyer";
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Merchant") TArray<FString> Dialogue = { "Throw your harvest to me to sell it.", "Replant your harvest for more value." };
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Merchant") TArray<FString> Dialogue = { "Throw your harvest to me to sell it.", "Harvested items can be used or sold, but cannot be planted again." };
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Merchant", meta=(ClampMin="0")) float PriceMultiplier = 1;
     void Talk(AFarmCharacter* Player);
     UFUNCTION(BlueprintCallable, Category="Merchant") bool TrySell(AFarmItem* Item, AFarmCharacter* Player);

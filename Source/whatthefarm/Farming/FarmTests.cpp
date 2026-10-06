@@ -38,9 +38,15 @@ bool FFarmCoreTest::RunTest(const FString&)
     TestTrue(TEXT("Harvest preserves scale and mesh"),Seed->GetActorScale3D().Equals(Grown) && Seed->Mesh->GetStaticMesh()==Mesh);
     TestTrue(TEXT("Seed becomes produce"),Seed->Kind==EFarmKind::Produce);
     TestTrue(TEXT("Profile preserved"),Seed->GrowthProfile==Profile);
-    TestTrue(TEXT("Replant keeps harvested size"),Seed->PlantAt(Soil,Aim) && Seed->GetActorScale3D().Equals(Grown));
-    Soil->WaterArea(Aim,80,50); Seed->Grow(20); Seed->Hit(100);
-    TestTrue(TEXT("Replant generation increases"),Seed->Generation==1);
+    const int32 HarvestValue=Seed->Value();
+    TestFalse(TEXT("Harvest cannot be planted again"),Seed->PlantAt(Soil,Aim));
+    Soil->Till(FVector(500,0,0),80);
+    TestFalse(TEXT("New soil cannot reset planting history"),Seed->PlantAt(Soil,FVector(500,0,0)));
+    TestTrue(TEXT("Rejected replant preserves size and value"),Seed->GetActorScale3D().Equals(Grown) && Seed->Value()==HarvestValue);
+    TestTrue(TEXT("An unplanted object can use the freed plot"),Other->PlantAt(Soil,Aim));
+    TestEqual(TEXT("First planting does not increment generation"),Other->Generation,0);
+    Soil->WaterArea(Aim,80,50); Other->Grow(20); Other->Hit(100);
+    TestFalse(TEXT("Harvested tool or item cannot be planted again"),Other->PlantAt(Soil,Aim));
     auto* Player=World->SpawnActor<AFarmCharacter>(FVector(0,-1000,150),FRotator::ZeroRotator);
     if(!TestNotNull(TEXT("Player spawned"),Player)) { GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false; }
     Player->Inventory.SetNum(2);
@@ -50,6 +56,7 @@ bool FFarmCoreTest::RunTest(const FString&)
     int32 After=0; for(TActorIterator<AFarmItem> It(World);It;++It) ++After;
     TestEqual(TEXT("Original supply immediately refills"),After,Before+1);
     Player->Select(1); TestTrue(TEXT("Second slot works"),Player->PickupItem(Seed));
+    TestFalse(TEXT("Pickup does not reset planting history"),Seed->PlantAt(Soil,Aim));
     int32 FullBefore=0; for(TActorIterator<AFarmItem> It(World);It;++It) ++FullBefore;
     TestFalse(TEXT("Full inventory does not consume supply"),Player->PickupItem(Other));
     int32 FullAfter=0; for(TActorIterator<AFarmItem> It(World);It;++It) ++FullAfter;
@@ -57,6 +64,7 @@ bool FFarmCoreTest::RunTest(const FString&)
     auto* Merchant=World->SpawnActor<AFarmMerchant>();
     TestFalse(TEXT("Held items cannot be sold"),Merchant->TrySell(Seed,Player));
     Seed->Throw(FVector(500,0,100),FVector(800,0,0));
+    TestFalse(TEXT("Throwing does not reset planting history"),Seed->PlantAt(Soil,Aim));
     const int32 Price=Seed->Value(); TestTrue(TEXT("Thrown item sells"),Merchant->TrySell(Seed,Player));
     TestEqual(TEXT("Sale pays correct gold"),Player->Gold,int64(Price));
     TestFalse(TEXT("Cannot pay twice"),Merchant->TrySell(Seed,Player));

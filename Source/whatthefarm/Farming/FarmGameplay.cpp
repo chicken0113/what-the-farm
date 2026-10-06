@@ -192,7 +192,7 @@ void AFarmItem::AlignOnSoil()
 
 bool AFarmItem::PlantAt(AFarmSoil* Soil, FVector Point)
 {
-    if (!Soil || Planted || Mature) return false;
+    if (!Soil || Planted || Mature || HasBeenPlanted) return false;
     int32 Index=Soil->FindPlot(Point);
     if(Index==INDEX_NONE || IsValid(Soil->Plots[Index].Plant)) return false;
     const FBox Bounds=Soil->Ground->Bounds.GetBox();
@@ -203,7 +203,7 @@ bool AFarmItem::PlantAt(AFarmSoil* Soil, FVector Point)
     Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly); SetActorHiddenInGame(false);
     HomeSoil=Soil; PlotIndex=Index; SoilHeight=Point.Z; PlantScale=GetActorScale3D();
     Planted=true; Mature=false; Held=false; Thrown=false; RestockOnPickup=false; GrowthProgress=0;
-    if(Kind!=EFarmKind::Seed) ++Generation;
+    HasBeenPlanted=true;
     Health=3+Generation*2;
     Duration=GrowthProfile ? FMath::Max(.1f,GrowthProfile->GrowthSeconds+Generation*GrowthProfile->SecondsPerGeneration) : 4+Generation;
     Soil->Plots[Index].Plant=this; AlignOnSoil(); return true;
@@ -370,6 +370,7 @@ void AFarmCharacter::Interact()
     if(auto* Merchant=Cast<AFarmMerchant>(Hit.GetActor())) { Merchant->Talk(this); return; }
     if(auto* Item=Cast<AFarmItem>(Hit.GetActor())) if(!Item->Planted && !Item->Mature) { PickupItem(Item); return; }
     if(!HeldItem()) { Notify(TEXT("Select an item to plant.")); return; }
+    if(HeldItem()->HasBeenPlanted) { Notify(TEXT("This item was already grown. Use it or sell it; it cannot be planted again.")); return; }
     FHitResult SoilHit;
     if(Aim(SoilHit,true) && SoilHit.ImpactNormal.Z>=.9)
     {

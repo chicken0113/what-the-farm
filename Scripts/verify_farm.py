@@ -104,6 +104,12 @@ def tick(delta):
                 assert not state["seed"].mature and state["seed"].get_actor_scale3d()==state["grown"]
                 player.select(1)
                 assert player.pickup_item(state["seed"])
+                assert state["seed"].has_been_planted
+                aim(player,state["plot_point"])
+                player.interact()
+                assert player.inventory[1]==state["seed"] and not state["seed"].planted,"Replant must be rejected without consuming the harvest"
+                assert state["seed"].get_actor_scale3d()==state["grown"]
+                ue.log("FARM_SINGLE_PLANT_SUCCESS")
                 player.toggle_inventory()
                 player.toggle_inventory()
                 assert len(ue.GameplayStatics.get_all_actors_of_class(world,ue.FarmItem))==9
