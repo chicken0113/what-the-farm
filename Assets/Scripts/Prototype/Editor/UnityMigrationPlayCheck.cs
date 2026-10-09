@@ -109,7 +109,7 @@ public static class UnityMigrationPlayCheck
                     Aim(new Vector3(.8f,0,-8.5f)); player.Swing();
                     var bareSoil=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     var barePlot=bareSoil.FindPlot(new Vector3(.8f,0,-8.5f));
-                    Check(barePlot!=null && Mathf.Abs(barePlot.Radius-.8f)<.001f,"Bare hand did not till at aim point");
+                    Check(barePlot!=null && Mathf.Abs(barePlot.Radius-.08f)<.001f,"Bare hand did not create a fist-sized patch at aim point");
                     break;
                 case 1:
                     world=UnityEngine.Object.FindFirstObjectByType<FarmPrototype>(); player=world.Player;

@@ -71,7 +71,7 @@ namespace WhatTheFarm.Prototype
         public FarmPlot Till(Vector3 point, float radius, Material dry, Material wet)
         {
             if (FindPlot(point) != null) return null;
-            radius = Mathf.Max(.1f, radius);
+            radius = Mathf.Max(.01f, radius);
             Collider ground = GetComponent<Collider>();
             if (ground == null) return null;
             var vertices = new System.Collections.Generic.List<Vector3>();

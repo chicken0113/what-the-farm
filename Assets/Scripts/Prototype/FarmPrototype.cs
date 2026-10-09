@@ -15,8 +15,10 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private bool buildArenaAtRuntime = true;
         [SerializeField] private Transform playerSpawnPoint;
         [SerializeField, Min(.1f)] private float tillingRadius = .8f;
+        [SerializeField, Min(.01f), Tooltip("Bare-hand tilling radius in metres; 0.08 gives a roughly fist-sized 16 cm patch.")]
+        private float bareHandTillingRadius = .08f;
         [SerializeField, Min(.1f)] private float wateringRadius = .8f;
-        public float TillingRadiusFor(FarmItem tool) => tillingRadius * (tool != null ? tool.SizeMultiplier : 1);
+        public float TillingRadiusFor(FarmItem tool) => tool != null ? tillingRadius * tool.SizeMultiplier : bareHandTillingRadius;
         public float WateringRadiusFor(FarmItem tool) => wateringRadius * (tool != null ? tool.SizeMultiplier : 1);
         [SerializeField, Min(0)] private int startingGold;
         [SerializeField, Range(1, 100)] private float waterPerUse = 25;
