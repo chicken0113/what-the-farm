@@ -18,6 +18,8 @@ namespace WhatTheFarm.Prototype
         private float verticalSpeed;
         private float nextSwingTime;
         private FarmActionAnimation actions;
+        private FarmerEmptyHand emptyHand;
+        public FarmerEmptyHand EmptyHand => emptyHand;
         [SerializeField, Min(1)] private float maxHealth = 100;
         public float Health { get; private set; } = 100;
         public float MaxHealth => maxHealth;
@@ -63,6 +65,7 @@ namespace WhatTheFarm.Prototype
             gameObject.layer = 9;
             Health = maxHealth;
             inventory = new FarmItem[Mathf.Max(1, slotCount)];
+            emptyHand = FarmerEmptyHand.Create(view.transform);
             LockCursor();
         }
 
@@ -160,6 +163,7 @@ namespace WhatTheFarm.Prototype
 
         private void RefreshHeldItem()
         {
+            if (emptyHand != null) emptyHand.SetVisible(HeldItem == null);
             for (int index = 0; index < inventory.Length; index++)
             {
                 FarmItem item = inventory[index];
@@ -264,6 +268,7 @@ namespace WhatTheFarm.Prototype
                 {
                     inventory[selectedSlot] = null;
                     Destroy(item.gameObject);
+                    RefreshHeldItem();
                     actions?.PlaySwing();
                 }
             }
@@ -292,6 +297,7 @@ namespace WhatTheFarm.Prototype
                 item.MarkThrown();
             }
             world.SetMessage($"Threw {item.DisplayName}. Throw to the buyer to sell it.");
+            RefreshHeldItem();
         }
 
         public void Swing()
@@ -319,14 +325,14 @@ namespace WhatTheFarm.Prototype
                 float damage = item != null && item.Kind == ItemKind.Tool ? 2f * item.SizeMultiplier : 1f;
                 crop.TakeHit(damage);
             }
-            else if (item != null && hit.collider.TryGetComponent(out SoilSurface soil))
+            else if (hit.collider.TryGetComponent(out SoilSurface soil))
             {
                 if (hit.normal.y < .9f)
                 {
                     world.SetMessage("Aim at the top of the ground.");
                     return;
                 }
-                if (item.Kind == ItemKind.Tool)
+                if (item == null || item.Kind == ItemKind.Tool)
                     world.TryTill(soil, hit.point, item);
                 else if (item.Kind == ItemKind.WateringCan)
                     world.TryWater(soil, hit.point, item);
