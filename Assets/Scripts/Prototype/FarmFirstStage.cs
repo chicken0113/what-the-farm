@@ -41,5 +41,9 @@ namespace WhatTheFarm.Prototype
             Cleared = true; Monster = null;
             world.SetMessage("Merchant defeated! Go to the purple exit and press E.");
         }
+        public void MerchantReturnedToPeace(FarmGuardian enemy)
+        {
+            if (!Cleared && enemy == Monster) Spawned = false;
+        }
     }
 }

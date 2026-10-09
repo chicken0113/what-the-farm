@@ -142,7 +142,7 @@ MonoBehaviour:
   attackRange: 1.9
   attackInterval: 1.2
   attackDamage: 20
-  hostileTint: {r: 1, g: 0.35, b: 0.3, a: 1}
+  deathFallDuration: 0.45
 --- !u!1001 &8856303849800714391
 PrefabInstance:
   m_ObjectHideFlags: 0

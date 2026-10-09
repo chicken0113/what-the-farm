@@ -16,6 +16,7 @@ namespace WhatTheFarm.Prototype
         private int nextLine;
         private FarmGuardian combat;
         public bool IsHostile => combat != null && combat.IsHostile;
+        public bool IsDefeated => combat != null && combat.IsDefeated;
         public void BindCombat(FarmGuardian guardian) => combat = guardian;
         public FarmGuardian EnsureCombat(FarmPrototype farm, FarmFirstStage encounter = null)
         {
@@ -39,6 +40,7 @@ namespace WhatTheFarm.Prototype
         public void Talk()
         {
             if (!FindWorld()) return;
+            if (IsDefeated) return;
             if (IsHostile) { world.SetMessage("The hostile merchant will not trade or talk."); return; }
             string line = dialogue != null && dialogue.Length > 0
                 ? dialogue[nextLine++ % dialogue.Length]
@@ -48,7 +50,7 @@ namespace WhatTheFarm.Prototype
 
         public bool TrySell(FarmItem item)
         {
-            if (item == null || IsHostile || !FindWorld()) return false;
+            if (item == null || IsHostile || IsDefeated || !FindWorld()) return false;
             int price = Mathf.Max(0, Mathf.RoundToInt(item.Value * saleMultiplier));
             if (price == 0 || !item.ClaimSale()) return false;
             world.AddGold(price);

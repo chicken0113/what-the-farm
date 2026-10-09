@@ -28,6 +28,14 @@ public static class UnityMigrationPlayCheck
     static long gold;
     static float health;
     static int hits;
+    static FarmGuardian corpse;
+    static Vector3 merchantHome;
+    static Quaternion merchantHomeRotation;
+    static Color[] merchantColors;
+    static Color[] Appearance(FarmGuardian merchant) => merchant.GetComponentsInChildren<Renderer>().Select(renderer =>
+    {
+        var block = new MaterialPropertyBlock(); renderer.GetPropertyBlock(block); return block.GetColor("_BaseColor");
+    }).ToArray();
     static UnityMigrationPlayCheck() { EditorApplication.update+=Tick; EditorApplication.playModeStateChanged+=Changed; }
     [MenuItem("What The Farm/Validate Unity Migration (Play)")]
     public static void Run()
@@ -119,6 +127,7 @@ public static class UnityMigrationPlayCheck
                             Check(material != null && material.shader != null && material.shader.name.StartsWith("Universal Render Pipeline/"),"Non-URP scene material: "+renderer.name);
                     Check(stage!=null && !stage.Spawned && !exit.CanTravel,"First-stage setup/locked exit");
                     Check(stage.Monster!=null && !stage.Monster.IsHostile && stage.Monster.GetComponent<NpcMerchant>()!=null,"Merchant must start peaceful");
+                    merchantHome=stage.Monster.transform.position; merchantHomeRotation=stage.Monster.transform.rotation;
                     var soil=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     Check(Mathf.Abs(soil.GetComponent<Collider>().bounds.size.x-100)<.1f,"100m ground missing");
                     Check(!UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Any(t=>t.name.StartsWith("Fence_Block")),"Old fences remain");
@@ -169,7 +178,9 @@ public static class UnityMigrationPlayCheck
                     Check(world.Gold>gold,"NPC trigger sale failed"); gold=world.Gold;
                     Move(new Vector3(13,.1f,0)); Check(!stage.CheckBoundary(player),"Boundary equality spawned monster");
                     var existingMerchant=stage.Monster;
+                    merchantColors=Appearance(existingMerchant);
                     Move(new Vector3(14,.1f,0)); Check(stage.CheckBoundary(player),"Boundary did not activate merchant combat");
+                    Check(merchantColors.SequenceEqual(Appearance(existingMerchant)),"Combat changed merchant colour");
                     Check(stage.Monster==existingMerchant && existingMerchant.IsHostile && UnityEngine.Object.FindObjectsByType<FarmGuardian>(FindObjectsSortMode.None).Length==1,"Boundary spawned a separate monster");
                     var rejected=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); rejected.MarkThrown();
                     Check(!existingMerchant.GetComponent<NpcMerchant>().TrySell(rejected) && world.Gold==gold && !rejected.IsSold,"Hostile merchant accepted sale"); UnityEngine.Object.Destroy(rejected.gameObject);
@@ -183,6 +194,11 @@ public static class UnityMigrationPlayCheck
                     Check(player.Health<health,"Monster did not damage player");
                     player.ReceiveDamage(999); Check(player.Health==player.MaxHealth && Vector3.Distance(player.transform.position,world.SpawnPosition)<.01f,"Knockout failed");
                     Check(player.CaptureInventory()[2]==grownItem,"Knockout lost inventory");
+                    Check(!stage.Spawned && !stage.Cleared && !stage.Monster.IsHostile && stage.Monster.Health==stage.Monster.MaxHealth,"Knockout did not reset merchant encounter");
+                    Check(Vector3.Distance(stage.Monster.transform.position,merchantHome)<.001f && Quaternion.Angle(stage.Monster.transform.rotation,merchantHomeRotation)<.01f,"Merchant did not return home");
+                    Check(stage.Monster.GetComponent<CapsuleCollider>().enabled && !stage.Monster.GetComponent<CharacterController>().enabled,"Peaceful merchant collisions not restored");
+                    var resumedSale=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); resumedSale.MarkThrown();
+                    Check(stage.Monster.GetComponent<NpcMerchant>().TrySell(resumedSale),"Merchant did not resume sales after player death"); gold=world.Gold;
                     Move(stage.Monster.transform.position+Vector3.right*2.3f); player.SelectSlot(0);
                     Aim(stage.Monster.transform.position+Vector3.up*.9f); health=stage.Monster.Health; player.Swing();
                     Check(stage.Monster.Health<health,"Swing did not hit guardian"); hits=1;
@@ -222,9 +238,16 @@ public static class UnityMigrationPlayCheck
                     break;
                 case 9:
                     Check(player.Health<health,"Hit-triggered merchant did not attack");
-                    stage.Monster.TakeHit(1000);
+                    corpse=stage.Monster; corpse.TakeHit(1000);
                     Check(stage.Cleared && UnityEngine.Object.FindFirstObjectByType<FarmStageExit>().CanTravel,"Hit-triggered encounter did not unlock exit");
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: peaceful merchant trade, boundary/hit aggro on the same NPC, hostile sale rejection, visible empty hand, bare-hand till, slot/pickup/plant/throw/travel hand visibility, stock pickup/refill, till/aim planting, occupied soil, watering/growth, harvest size, single planting, tool radius, NPC trigger sale, boundary/chase/damage/swing/knockout/clear, travel inventory/gold/history.");
+                    break;
+                case 10:
+                    Check(corpse!=null && corpse.IsDefeated && !corpse.IsHostile && Mathf.Abs(Vector3.Dot(corpse.transform.up,Vector3.up))<.01f,"Dead merchant disappeared or failed to fall over");
+                    Check(corpse.GetComponentsInChildren<Renderer>().Any(r=>r.enabled) && corpse.GetComponentsInChildren<Collider>().All(c=>!c.enabled),"Corpse invisible or still collidable");
+                    var corpseSale=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); corpseSale.MarkThrown();
+                    Check(!corpse.GetComponent<NpcMerchant>().TrySell(corpseSale),"Dead merchant accepted sale"); UnityEngine.Object.Destroy(corpseSale.gameObject);
+                    corpse.ResetAfterPlayerDeath(); Check(corpse.IsDefeated && !corpse.BecomeHostile(),"Dead merchant revived after reset");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: original merchant colours, player death restores home/health/peaceful trade/collisions, fallen visible non-interactive corpse, peaceful merchant trade, boundary/hit aggro on the same NPC, hostile sale rejection, visible empty hand, bare-hand till, slot/pickup/plant/throw/travel hand visibility, stock pickup/refill, till/aim planting, occupied soil, watering/growth, harvest size, single planting, tool radius, NPC trigger sale, boundary/chase/damage/swing/knockout/clear, travel inventory/gold/history.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

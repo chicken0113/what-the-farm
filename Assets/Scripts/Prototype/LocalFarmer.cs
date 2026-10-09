@@ -43,6 +43,7 @@ namespace WhatTheFarm.Prototype
             if (Health > 0) { world.SetMessage($"Guardian hit! HP {Health:0}/{MaxHealth:0}"); return; }
             Health = maxHealth; verticalSpeed = 0;
             body.enabled = false; transform.position = world.SpawnPosition; body.enabled = true;
+            foreach (var merchant in FindObjectsByType<FarmGuardian>(FindObjectsSortMode.None)) merchant.ResetAfterPlayerDeath();
             world.SetMessage("Knocked out. Returned to the farm; your items are kept.");
         }
         [SerializeField, Min(1)] private float throwSpeed = 8f;
