@@ -32,6 +32,18 @@ namespace WhatTheFarm.Prototype
             new Vector2(point.x - transform.position.x, point.z - transform.position.z).sqrMagnitude
                 <= Radius * Radius && Mathf.Abs(point.y - transform.position.y) < .05f;
         public float Radius { get; private set; }
+        public bool FitsItem(Bounds offsets, Vector3 position)
+        {
+            // Check the complete horizontal footprint at the mouse position, including a small soil margin.
+            float available = Mathf.Max(0, Radius - .005f);
+            for (int corner = 0; corner < 4; corner++)
+            {
+                float x = position.x + ((corner & 1) == 0 ? offsets.min.x : offsets.max.x) - transform.position.x;
+                float z = position.z + ((corner & 2) == 0 ? offsets.min.z : offsets.max.z) - transform.position.z;
+                if (x * x + z * z > available * available) return false;
+            }
+            return true;
+        }
 
         public void ConfigureArea(Renderer areaVisual, Material dry, Material wet, float radius)
         {

@@ -304,6 +304,12 @@ namespace WhatTheFarm.Prototype
                 return false;
             }
             var corpse = item.GetComponent<PlantableCorpse>();
+            Quaternion plantingRotation = corpse != null ? corpse.PlantingRotation : Quaternion.identity;
+            if (!plot.FitsItem(item.PlantingBounds(plantingRotation), position))
+            {
+                SetMessage("Not enough tilled ground for this item's size here. Till a larger area or aim farther inside.");
+                return false;
+            }
             if (corpse != null) return corpse.Plant(this, item, plot, position);
             if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             EnsureMaterials();

@@ -40,6 +40,28 @@ public static class UnityMigrationPlayCheck
     static float returnStarted;
     static Vector3 revivalScale;
     static float shotWaitStarted;
+    static void CheckPlantFootprint(SoilSurface soil)
+    {
+        var center=new Vector3(30,0,20);
+        var dry=AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Blockout/Tilled.mat");
+        var wet=AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Blockout/Wet.mat");
+        var plot=soil.Till(center,.6f,dry,wet);
+        var model=new GameObject("Plant footprint check"); var item=model.AddComponent<FarmItem>(); item.Configure(ItemKind.Curio,0,10);
+        var child=GameObject.CreatePrimitive(PrimitiveType.Cube); child.transform.SetParent(model.transform,false);
+        child.transform.localPosition=new Vector3(.15f,1.5f,0); child.transform.localScale=new Vector3(.5f,3,.5f);
+        model.transform.SetPositionAndRotation(Vector3.up*10,Quaternion.Euler(80,30,20));
+        var bounds=item.PlantingBounds(Quaternion.identity);
+        Check(Mathf.Abs(bounds.size.x-.5f)<.001f && Mathf.Abs(bounds.size.z-.5f)<.001f,"Held rotation distorted planted footprint");
+        Check(!world.TryPlant(item,plot,center+Vector3.right*.3f) && !plot.IsOccupied && !item.HasBeenPlanted,"Edge-overhanging item planted or rejection consumed item");
+        model.transform.localScale=Vector3.one*3;
+        Check(!world.TryPlant(item,plot,center) && !plot.IsOccupied && !item.HasBeenPlanted,"Oversized item planted in small plot");
+        model.transform.localScale=Vector3.one;
+        var aimPoint=center-Vector3.right*.05f;
+        Check(world.TryPlant(item,plot,aimPoint),"Tall item with fitting horizontal footprint rejected");
+        var planted=world.GetComponentsInChildren<FleeingCrop>().Single(c=>c.Plot==plot);
+        Check(Vector2.Distance(new Vector2(planted.transform.position.x,planted.transform.position.z),new Vector2(aimPoint.x,aimPoint.z))<.001f,"Footprint check snapped plant to plot centre");
+        UnityEngine.Object.Destroy(planted.gameObject); UnityEngine.Object.Destroy(model);
+    }
     static void CheckBuried(PlantableCorpse body, float groundHeight)
     {
         var renderers=body.GetComponentsInChildren<Renderer>();
@@ -156,9 +178,17 @@ public static class UnityMigrationPlayCheck
                     Check(Vector3.Distance(refill.transform.position,stockPosition)<.001f,"Restock position drift");
                     Check(Physics.GetIgnoreLayerCollision(8,9) && Physics.GetIgnoreLayerCollision(8,8),"Loose item collision");
                     Check(stock.GetComponentsInChildren<Renderer>(true).Max(r=>r.bounds.size.magnitude)<1,"Tool not reduced");
+                    var heldScale=player.HeldItem.transform.localScale;
+                    player.HeldItem.transform.localScale*=10;
                     Aim(new Vector3(.8f,0,-8.5f)); player.Interact();
+                    Check(player.HeldItem!=null && !player.HeldItem.HasBeenPlanted,"Oversized hoe planted in fist-sized soil or rejection lost inventory");
+                    player.HeldItem.transform.localScale=heldScale;
+                    var largerPoint=new Vector3(1.3f,0,-8.5f);
+                    Check(world.TryTill(soil,largerPoint,player.HeldItem),"Larger planting area till failed");
+                    Aim(largerPoint); player.Interact();
                     Check(player.HeldItem==null && player.EmptyHand.IsVisible,"Planting did not restore empty hand");
                     var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single(); UnityEngine.Object.Destroy(plantedExtra.gameObject);
+                    CheckPlantFootprint(soil);
                     player.SelectSlot(0); Aim(new Vector3(-1,0,-8.5f)); player.Swing();
                     var plot=soil.FindPlot(new Vector3(-1,0,-8.5f)); Check(plot!=null,"Hoe till action failed");
                     var source=world.CreateItem(ItemKind.Tool,0,16,new Vector3(0,5,0));
@@ -315,7 +345,7 @@ public static class UnityMigrationPlayCheck
                     surface=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     var revivePoint=new Vector3(20,0,-15);
                     Check(!world.TryPlant(bodyItem,null,revivePoint),"Corpse planted on untilled ground");
-                    Check(world.TryTill(surface,revivePoint),"Revival till failed"); revivalPlot=surface.FindPlot(revivePoint);
+                    Check(world.TryTill(surface,revivePoint,world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool)),"Revival till failed"); revivalPlot=surface.FindPlot(revivePoint);
                     Move(revivePoint+Vector3.back*2+Vector3.up*.1f); Aim(revivePoint); player.Interact();
                     Check(player.HeldItem==null && corpse!=null && revivalPlot.IsOccupied,"Planting consumed/destroyed original NPC body");
                     Check(Vector3.Dot(corpse.transform.up,Vector3.up)>.999f,"Planted NPC did not stand upright");
@@ -360,7 +390,7 @@ public static class UnityMigrationPlayCheck
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerCenter-helperCamera.transform.position); teammate.Interact();
                     Check(teammate.HeldItem!=null && teammate.HeldItem.GetComponent<PlantableCorpse>()==player.DeathBody,"Teammate could not pick up player body");
                     revivalScale=player.DeathBody.transform.lossyScale;
-                    var playerPoint=new Vector3(23,0,-15); Check(world.TryTill(surface,playerPoint),"Player revival till failed");
+                    var playerPoint=new Vector3(23,0,-15); Check(world.TryTill(surface,playerPoint,world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool)),"Player revival till failed");
                     revivalPlot=surface.FindPlot(playerPoint);
                     helper.transform.position=playerPoint+Vector3.back*2+Vector3.up*.1f;
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerPoint-helperCamera.transform.position); Physics.SyncTransforms(); teammate.Interact();
@@ -378,7 +408,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

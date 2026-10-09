@@ -22,6 +22,42 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private bool hasBeenPlanted;
         private void Awake() => SetLooseCollision();
         public bool HasBeenPlanted => hasBeenPlanted;
+        // Measure the visible model in its planted orientation, not its pose in the player's hand.
+        // Bounds are offsets from the planting point, so off-centre model pivots are preserved.
+        public Bounds PlantingBounds(Quaternion rotation)
+        {
+            Bounds result = new Bounds(Vector3.zero, Vector3.zero);
+            bool found = false;
+            Vector3 scale = transform.lossyScale;
+            void Include(Vector3 local, Transform part)
+            {
+                Vector3 offset = rotation * Vector3.Scale(transform.InverseTransformPoint(part.TransformPoint(local)), scale);
+                if (!found) { result = new Bounds(offset, Vector3.zero); found = true; }
+                else result.Encapsulate(offset);
+            }
+            foreach (var renderer in GetComponentsInChildren<Renderer>(true))
+            {
+                if (!renderer.enabled || renderer is LineRenderer || renderer is TrailRenderer || renderer is ParticleSystemRenderer) continue;
+                bool visible = true;
+                for (var part = renderer.transform; part != transform; part = part.parent)
+                    if (!part.gameObject.activeSelf) { visible = false; break; }
+                if (!visible) continue;
+                if (renderer is SkinnedMeshRenderer skin)
+                {
+                    var mesh = new Mesh(); skin.BakeMesh(mesh, false);
+                    foreach (var vertex in mesh.vertices) Include(vertex, skin.transform);
+                    if (Application.isPlaying) Destroy(mesh); else DestroyImmediate(mesh);
+                }
+                else
+                {
+                    Bounds bounds = renderer.localBounds;
+                    for (int corner = 0; corner < 8; corner++)
+                        Include(bounds.center + Vector3.Scale(bounds.extents, new Vector3(
+                            (corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1)), renderer.transform);
+                }
+            }
+            return result;
+        }
         public void MarkPlanted() => hasBeenPlanted = true;
         public void SetLooseCollision()
         {

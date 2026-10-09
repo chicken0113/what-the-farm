@@ -11,6 +11,7 @@
 
 ## Gameplay and migration
 
+- Planting requires the entire visible item footprint (horizontal X/Z bounds in its planted orientation and current size, including off-centre pivots) to fit inside the selected tilled area with a 5mm margin. Apply to ordinary items and bodies, reject without consuming the item, and keep the mouse position. Use the stored gameplay radius for irregular visual outlines.
 - Preserve aim-point planting, one plant per tilled area, watering to begin growth, environment bonuses to final size, grown harvest size, tool range scaling, inventory, restocking and NPC sale.
 - Intended design from Unreal work: each item may be planted only once; small loose items do not block the player; FirstFarm alone has an encounter using the existing merchant: hitting the merchant or crossing the boundary makes them hostile; defeat unlocks stage travel. Do not spawn a separate boundary monster. These are implemented in Unity; preserve the single-planting rule and restrict the encounter to FirstFarm.
 - The user explicitly forbids importing assets used in Unreal. Use Unity assets only. The new Unity packs contain no character action animations; optional Animator hooks do not constitute working animations.

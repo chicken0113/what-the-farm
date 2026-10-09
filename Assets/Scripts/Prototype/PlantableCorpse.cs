@@ -19,6 +19,7 @@ namespace WhatTheFarm.Prototype
         public string OwnerId => ownerId;
         public string DisplayName => ownerName + " Body";
         public BodyState State { get; private set; }
+        public Quaternion PlantingRotation => npc != null ? npc.HomeRotation : Quaternion.identity;
         public float Health => npc != null ? npc.Health : player != null ? player.Health : 0;
         public float MaxHealth => npc != null ? npc.MaxHealth : player != null ? player.MaxHealth : 1;
         public void BindNpc(FarmGuardian target)
@@ -88,7 +89,7 @@ namespace WhatTheFarm.Prototype
             transform.SetParent(null, true);
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, world.gameObject.scene);
             transform.SetParent(world.transform, true);
-            transform.SetPositionAndRotation(position, npc != null ? npc.HomeRotation : Quaternion.identity); transform.localScale = size;
+            transform.SetPositionAndRotation(position, PlantingRotation); transform.localScale = size;
             gameObject.SetActive(true);
             var body = GetComponent<Rigidbody>(); body.isKinematic = true; body.useGravity = false;
             pickupCollider.enabled = true;

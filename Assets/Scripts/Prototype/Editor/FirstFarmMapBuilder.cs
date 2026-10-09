@@ -288,7 +288,7 @@ public static class FirstFarmMapBuilder
                 throw new InvalidOperationException("Plant lost its original shape or size.");
             return crop;
         }
-        var growing = Plant(ItemKind.Seed, plot, origin + Vector3.right * .75f);
+        var growing = Plant(ItemKind.Seed, plot, origin + Vector3.right * .6f);
         Vector3 initialSize = growing.transform.localScale;
         int initialCount = world.GetComponentsInChildren<FleeingCrop>().Length;
         if (world.TryPlant(source, plot, origin + Vector3.left * .6f) ||
@@ -299,8 +299,8 @@ public static class FirstFarmMapBuilder
         UnityEngine.Object.DestroyImmediate(unregistered.gameObject);
         if (world.TryPlant(source, plot, origin + Vector3.right * 2))
             throw new InvalidOperationException("Planting outside tilled range accepted.");
-        var adjoining = soil.Till(origin + Vector3.right * 1.7f, .8f, dry, wet);
-        var neighbour = Plant(ItemKind.Seed, adjoining, origin + Vector3.right * 1.0f);
+        var adjoining = soil.Till(origin + Vector3.right * 1.35f, .8f, dry, wet);
+        var neighbour = Plant(ItemKind.Seed, adjoining, origin + Vector3.right * .7f);
         var scenery = GameObject.CreatePrimitive(PrimitiveType.Cube);
         scenery.transform.position = growing.transform.position;
         var loose = world.CreateItem(ItemKind.Seed, 0, 10, growing.transform.position);
@@ -340,10 +340,10 @@ public static class FirstFarmMapBuilder
         camera.transform.rotation = Quaternion.Euler(90, 0, 0);
         farmer.Configure(world, camera, 12);
         Physics.SyncTransforms();
-        if (!farmer.TryLookSoil(out RaycastHit aim) || Vector3.Distance(aim.point, origin + Vector3.right) > .001f)
+        if (!farmer.TryLookSoil(out RaycastHit aim) || Vector3.Distance(aim.point, origin + Vector3.right * .7f) > .001f)
             throw new InvalidOperationException("Existing crop blocks soil aiming.");
         var obstruction = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        obstruction.transform.position = origin + new Vector3(1, .7f, 0);
+        obstruction.transform.position = origin + new Vector3(.7f, .7f, 0);
         Physics.SyncTransforms();
         if (farmer.TryLookSoil(out _)) throw new InvalidOperationException("Soil aim passes through solid scenery.");
         var compound = new GameObject("Compound item").AddComponent<FarmItem>();

@@ -32,9 +32,9 @@ public static class ToolSizeValidation
         for (int i = 0; i < plots.Length; i++)
         {
             var center = new Vector3(positions[i], 0, 0);
-            plots[i] = soil.Till(center, .2f, dry, wet);
+            plots[i] = soil.Till(center, .28f, dry, wet);
             var seed = world.CreateItem(ItemKind.Seed, 0, 10, Vector3.up * 10);
-            if (!world.TryPlant(seed, plots[i], center + Vector3.right * .15f))
+            if (!world.TryPlant(seed, plots[i], center + Vector3.right * .1f))
                 throw new InvalidOperationException("Water radius test plant failed.");
         }
         Near(world.WateringRadiusFor(can), .8f);
