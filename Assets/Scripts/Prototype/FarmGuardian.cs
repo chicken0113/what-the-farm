@@ -27,6 +27,11 @@ namespace WhatTheFarm.Prototype
         private int homeLayer;
         private Collider[] originalColliders;
         private bool[] originalColliderStates;
+        private FarmReturnRoute returnRoute;
+        private int returnCorner;
+        public bool IsReturningHome { get; private set; }
+        public Vector3 HomePosition => homePosition;
+        public Quaternion HomeRotation => homeRotation;
         public bool IsDefeated => defeated;
         public bool IsHostile { get; private set; }
         public float Health { get; private set; }
@@ -57,6 +62,7 @@ namespace WhatTheFarm.Prototype
         public bool BecomeHostile()
         {
             if (defeated || IsHostile) return false;
+            StopReturning();
             IsHostile = true;
             gameObject.layer = 9;
             foreach (var collider in GetComponentsInChildren<Collider>(true))
@@ -97,12 +103,52 @@ namespace WhatTheFarm.Prototype
                     ~((1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore))
                     transform.position += Vector3.up * (ground.point.y - bottom);
             }
-            homePosition = transform.position;
             GetComponent<NpcMerchant>()?.BindWorld(farm);
             gameObject.name = GetComponent<NpcMerchant>()?.DisplayName ?? "NPC";
+            returnRoute = new FarmReturnRoute();
+            if (returnRoute.Build(farm, body, homePosition))
+            {
+                IsReturningHome = true; returnCorner = 0;
+                foreach (var collider in GetComponentsInChildren<Collider>())
+                    if (collider != body && !collider.isTrigger) collider.enabled = false;
+                // Keep the sale trigger on its friendly layer while loose items pass through the moving body.
+                gameObject.layer = homeLayer; body.excludeLayers |= 1 << 8; body.enabled = true;
+            }
+            else
+            {
+                StopReturning();
+                farm.SetMessage("Merchant revived, but the original spot has no walkable return route.");
+            }
+        }
+        private void StopReturning()
+        {
+            IsReturningHome = false; returnRoute?.Dispose(); returnRoute = null;
+        }
+        private void OnDestroy() => StopReturning();
+        private void WalkHome()
+        {
+            Vector3 point = returnRoute.Corners[returnCorner];
+            Vector3 direction = point - transform.position; direction.y = 0;
+            if (direction.magnitude < .15f)
+            {
+                if (++returnCorner >= returnRoute.Corners.Length)
+                {
+                    StopReturning(); body.enabled = false; gameObject.layer = homeLayer;
+                    transform.rotation = homeRotation;
+                    for (int i = 0; i < originalColliders.Length; i++)
+                        if (originalColliders[i] != null && originalColliders[i] != body)
+                            originalColliders[i].enabled = originalColliderStates[i];
+                    return;
+                }
+                point = returnRoute.Corners[returnCorner]; direction = point - transform.position; direction.y = 0;
+            }
+            fallSpeed = body.isGrounded ? -1 : fallSpeed - 18 * Time.deltaTime;
+            body.Move(Vector3.ClampMagnitude(direction, moveSpeed * Time.deltaTime) + Vector3.up * fallSpeed * Time.deltaTime);
+            if (direction.sqrMagnitude > .001f) transform.rotation = Quaternion.LookRotation(direction);
         }
         private void Update()
         {
+            if (IsReturningHome && !defeated && !IsHostile) { WalkHome(); return; }
             if (defeated || !IsHostile || world == null || world.Player == null || world.Player.IsDead) return;
             var player = world.Player;
             Vector3 direction = player.transform.position-transform.position; direction.y = 0;

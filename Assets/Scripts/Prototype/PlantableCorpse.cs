@@ -10,7 +10,7 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private string ownerName;
         [SerializeField] private FarmGuardian npc;
         [SerializeField] private LocalFarmer player;
-        [SerializeField] private Quaternion fallenRotation;
+        [SerializeField, Min(0)] private float pickupPadding = .15f;
         private BoxCollider pickupCollider;
         private Vector3 plantedGroundPosition;
         public string OwnerId => ownerId;
@@ -29,7 +29,6 @@ namespace WhatTheFarm.Prototype
         }
         private void PreparePickup(PlantGrowthProfile profile)
         {
-            fallenRotation = transform.rotation;
             var item = GetComponent<FarmItem>();
             if (item == null) item = gameObject.AddComponent<FarmItem>();
             item.Configure(ItemKind.Corpse, 0, 0);
@@ -39,7 +38,13 @@ namespace WhatTheFarm.Prototype
             Bounds bounds = new Bounds(Vector3.zero, Vector3.zero); bool found = false;
             foreach (var renderer in GetComponentsInChildren<Renderer>())
             {
+                Mesh baked = null;
                 Bounds local = renderer.localBounds;
+                if (renderer is SkinnedMeshRenderer skin)
+                {
+                    baked = new Mesh(); skin.BakeMesh(baked, false); baked.RecalculateBounds(); local = baked.bounds;
+                    skin.localBounds = local;
+                }
                 for (int corner = 0; corner < 8; corner++)
                 {
                     Vector3 point = local.center + Vector3.Scale(local.extents,
@@ -47,9 +52,20 @@ namespace WhatTheFarm.Prototype
                     point = transform.InverseTransformPoint(renderer.transform.TransformPoint(point));
                     if (!found) { bounds = new Bounds(point, Vector3.zero); found = true; } else bounds.Encapsulate(point);
                 }
+                if (baked != null) Destroy(baked);
             }
             pickupCollider.center = bounds.center;
-            pickupCollider.size = found ? Vector3.Max(bounds.size, Vector3.one * .05f) : Vector3.one * .5f;
+            Vector3 scale = transform.lossyScale;
+            Vector3 padding = new Vector3(pickupPadding / Mathf.Max(.001f, Mathf.Abs(scale.x)),
+                pickupPadding / Mathf.Max(.001f, Mathf.Abs(scale.y)), pickupPadding / Mathf.Max(.001f, Mathf.Abs(scale.z)));
+            pickupCollider.size = (found ? Vector3.Max(bounds.size, Vector3.one * .05f) : Vector3.one * .5f) + padding * 2;
+            if (Physics.Raycast(transform.position + Vector3.up * .5f, Vector3.down, out var floor, 3,
+                ~((1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore))
+            {
+                float bottom = float.PositiveInfinity;
+                foreach (var renderer in GetComponentsInChildren<Renderer>()) bottom = Mathf.Min(bottom, renderer.bounds.min.y);
+                if (bottom < floor.point.y) transform.position += Vector3.up * (floor.point.y - bottom);
+            }
             var body = GetComponent<Rigidbody>();
             if (body == null) body = gameObject.AddComponent<Rigidbody>();
             body.isKinematic = true; body.useGravity = false;
@@ -65,7 +81,7 @@ namespace WhatTheFarm.Prototype
             transform.SetParent(null, true);
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, world.gameObject.scene);
             transform.SetParent(world.transform, true);
-            transform.SetPositionAndRotation(position, fallenRotation); transform.localScale = size;
+            transform.SetPositionAndRotation(position, npc != null ? npc.HomeRotation : Quaternion.identity); transform.localScale = size;
             gameObject.SetActive(true);
             var body = GetComponent<Rigidbody>(); body.isKinematic = true; body.useGravity = false;
             pickupCollider.enabled = true;
