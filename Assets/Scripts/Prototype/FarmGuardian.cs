@@ -11,6 +11,10 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(.1f)] private float attackRange = 1.9f;
         [SerializeField, Min(.1f)] private float attackInterval = 1.2f;
         [SerializeField, Min(1)] private float attackDamage = 20;
+        [SerializeField] private NpcFirearm firearmPrefab;
+        [SerializeField, Min(.5f)] private float preferredCombatDistance = 7;
+        private NpcFirearm firearm;
+        public NpcFirearm Firearm => firearm;
         [SerializeField, Min(.05f)] private float deathFallDuration = .45f;
         [SerializeField, Min(.1f)] private float revivalHealingSeconds = 4;
         [SerializeField, Range(.1f, .9f)] private float plantBuriedFraction = .5f;
@@ -70,6 +74,12 @@ namespace WhatTheFarm.Prototype
             foreach (var collider in GetComponentsInChildren<Collider>(true))
                 if (collider != body && !collider.isTrigger) collider.enabled = false;
             body.enabled = true;
+            if (firearm == null && firearmPrefab != null)
+            {
+                firearm = Instantiate(firearmPrefab, transform, false); firearm.Bind(this);
+            }
+            if (firearm != null) firearm.SetEquipped(true);
+            nextAttack = Time.time + .2f;
             stage?.MerchantBecameHostile(this);
             if (stage == null) world?.SetMessage("The merchant is hostile!");
             return true;
@@ -78,6 +88,7 @@ namespace WhatTheFarm.Prototype
         {
             if (defeated || !IsHostile) return;
             IsHostile = false; Health = maxHealth; nextAttack = 0; fallSpeed = 0;
+            if (firearm != null) firearm.SetEquipped(false);
             body.enabled = false;
             transform.SetPositionAndRotation(homePosition, homeRotation);
             gameObject.layer = homeLayer;
@@ -158,7 +169,8 @@ namespace WhatTheFarm.Prototype
             if (defeated || !IsHostile || world == null || world.Player == null || world.Player.IsDead) return;
             var player = world.Player;
             Vector3 direction = player.transform.position-transform.position; direction.y = 0;
-            Vector3 movement = direction.magnitude > attackRange*.75f ? direction.normalized*moveSpeed : Vector3.zero;
+            float approachDistance = firearm != null ? Mathf.Min(preferredCombatDistance, attackRange * .75f) : attackRange * .75f;
+            Vector3 movement = direction.magnitude > approachDistance ? direction.normalized*moveSpeed : Vector3.zero;
             fallSpeed = body.isGrounded ? -1 : fallSpeed-18*Time.deltaTime;
             body.Move((movement+Vector3.up*fallSpeed)*Time.deltaTime);
             if (direction.sqrMagnitude > .01f) transform.rotation = Quaternion.LookRotation(direction);
@@ -167,6 +179,12 @@ namespace WhatTheFarm.Prototype
         public bool Attack(LocalFarmer player)
         {
             if (defeated || !IsHostile || player == null || player.IsDead || Time.time < nextAttack || Vector3.Distance(player.transform.position, transform.position) > attackRange) return false;
+            if (firearm != null)
+            {
+                bool shot = firearm.TryFire(player, attackDamage);
+                nextAttack = Time.time + (shot ? attackInterval : .1f);
+                return shot;
+            }
             var start = transform.position+Vector3.up*.9f;
             var end = player.transform.position+Vector3.up*.9f;
             foreach (var hit in Physics.RaycastAll(start, (end-start).normalized, (end-start).magnitude, ~0, QueryTriggerInteraction.Ignore))
@@ -182,6 +200,7 @@ namespace WhatTheFarm.Prototype
             if (Health > 0) return;
             defeated = true;
             IsHostile = false;
+            if (firearm != null) firearm.SetEquipped(false);
             foreach (var collider in GetComponentsInChildren<Collider>(true)) collider.enabled = false;
             foreach (var animator in GetComponentsInChildren<Animator>()) animator.enabled = false;
             stage?.MonsterDefeated(this);

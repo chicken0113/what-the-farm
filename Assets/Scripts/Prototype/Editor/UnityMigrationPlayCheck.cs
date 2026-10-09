@@ -39,13 +39,14 @@ public static class UnityMigrationPlayCheck
     static Vector3 returnStart;
     static float returnStarted;
     static Vector3 revivalScale;
+    static float shotWaitStarted;
     static void CheckBuried(PlantableCorpse body, float groundHeight)
     {
         var renderers=body.GetComponentsInChildren<Renderer>();
         var bounds=renderers[0].bounds; foreach(var renderer in renderers.Skip(1)) bounds.Encapsulate(renderer.bounds);
         Check(bounds.min.y<groundHeight-.1f && bounds.max.y>groundHeight+.1f && Mathf.Abs(bounds.center.y-groundHeight)<.05f,"Body is not buried to its waist");
     }
-    static Color[] Appearance(FarmGuardian merchant) => merchant.GetComponentsInChildren<Renderer>().Select(renderer =>
+    static Color[] Appearance(FarmGuardian merchant) => merchant.transform.Find("Visual").GetComponentsInChildren<Renderer>().Select(renderer =>
     {
         var block = new MaterialPropertyBlock(); renderer.GetPropertyBlock(block); return block.GetColor("_BaseColor");
     }).ToArray();
@@ -198,19 +199,32 @@ public static class UnityMigrationPlayCheck
                     var rejected=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); rejected.MarkThrown();
                     Check(!existingMerchant.GetComponent<NpcMerchant>().TrySell(rejected) && world.Gold==gold && !rejected.IsSold,"Hostile merchant accepted sale"); UnityEngine.Object.Destroy(rejected.gameObject);
                     Check(!stage.CheckBoundary(player),"Duplicate monster spawn"); enemyStart=stage.Monster.transform.position;
+                    Move(new Vector3(18,.1f,7.5f)); // Clear sight line beside the seller, beyond melee reach.
+                    Check(stage.Monster.Firearm!=null && stage.Monster.Firearm.IsEquipped,"Hostile merchant did not equip existing gun model");
+                    Check(stage.Monster.Firearm.GetComponentsInChildren<Collider>().All(c=>!c.enabled),"Held gun has physical collision"); health=player.Health;
                     break;
                 case 4:
+                    Check(stage.Monster.Firearm.ShotsFired>0 && player.Health<health && Vector3.Distance(stage.Monster.transform.position,player.transform.position)>4,"Merchant did not damage player at gun range: shots="+stage.Monster.Firearm.ShotsFired+" HP="+player.Health+" before="+health+" distance="+Vector3.Distance(stage.Monster.transform.position,player.transform.position));
                     Check(Vector3.Distance(enemyStart,stage.Monster.transform.position)>.1f,"Monster did not chase: start="+enemyStart+" now="+stage.Monster.transform.position+" time="+Time.time);
                     var modelForward=stage.Monster.transform.Find("Visual").forward;
                     var chaseDirection=player.transform.position-stage.Monster.transform.position; chaseDirection.y=0;
                     Check(Vector3.Dot(modelForward,chaseDirection.normalized)>.99f,"Merchant visual faces backwards while chasing");
-                    Move(stage.Monster.transform.position+Vector3.right*1.5f); health=player.Health;
+                    var gun=stage.Monster.Firearm; var cover=GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    cover.transform.position=(stage.Monster.transform.position+player.transform.position)*.5f+Vector3.up;
+                    cover.transform.localScale=new Vector3(2,3,2); Physics.SyncTransforms();
+                    health=player.Health; int beforeShots=gun.ShotsFired;
+                    Check(!gun.TryFire(player,12) && player.Health==health && gun.ShotsFired==beforeShots,"Merchant shot through solid cover");
+                    cover.GetComponent<Collider>().enabled=false; UnityEngine.Object.Destroy(cover); Physics.SyncTransforms();
+                    Check(gun.TryFire(player,1) && player.Health==health-1,"Unblocked gun ray did not hit player");
+                    Move(stage.Monster.transform.position+Vector3.right*1.5f); health=player.Health; shotWaitStarted=Time.time;
                     break;
                 case 5:
+                    if(player.Health==health && Time.time-shotWaitStarted<2) return;
                     Check(player.Health<health,"Monster did not damage player");
                     player.ReceiveDamage(999); Check(player.Health==player.MaxHealth && Vector3.Distance(player.transform.position,world.SpawnPosition)<.01f,"Knockout failed");
                     Check(player.CaptureInventory()[2]==grownItem,"Knockout lost inventory");
                     Check(!stage.Spawned && !stage.Cleared && !stage.Monster.IsHostile && stage.Monster.Health==stage.Monster.MaxHealth,"Knockout did not reset merchant encounter");
+                    Check(!stage.Monster.Firearm.IsEquipped,"Merchant kept gun equipped after player death");
                     Check(Vector3.Distance(stage.Monster.transform.position,merchantHome)<.001f && Quaternion.Angle(stage.Monster.transform.rotation,merchantHomeRotation)<.01f,"Merchant did not return home");
                     Check(stage.Monster.GetComponent<CapsuleCollider>().enabled && !stage.Monster.GetComponent<CharacterController>().enabled,"Peaceful merchant collisions not restored");
                     var resumedSale=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); resumedSale.MarkThrown();
@@ -259,6 +273,7 @@ public static class UnityMigrationPlayCheck
                     break;
                 case 10:
                     Check(corpse!=null && corpse.IsDefeated && !corpse.IsHostile && Mathf.Abs(Vector3.Dot(corpse.transform.up,Vector3.up))<.01f,"Dead merchant disappeared or failed to fall over");
+                    Check(!corpse.Firearm.IsEquipped,"Dead merchant retained equipped gun");
                     Check(corpse.GetComponentsInChildren<Renderer>().Any(r=>r.enabled) && !corpse.GetComponent<CharacterController>().enabled && !corpse.GetComponent<CapsuleCollider>().enabled,"Corpse invisible or character collision still enabled");
                     var corpseSale=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); corpseSale.MarkThrown();
                     Check(!corpse.GetComponent<NpcMerchant>().TrySell(corpseSale),"Dead merchant accepted sale"); UnityEngine.Object.Destroy(corpseSale.gameObject);
@@ -295,6 +310,7 @@ public static class UnityMigrationPlayCheck
                     corpse.GetComponent<PlantableCorpse>().Recover(100);
                     Check(!corpse.IsDefeated && !corpse.IsHostile && corpse.Health==corpse.MaxHealth && !revivalPlot.IsOccupied && stage.Cleared,"NPC revival/reset or stage clear retention failed");
                     Check(corpse.ActorId==corpseOwnerId,"Revival duplicated/replaced NPC identity");
+                    Check(!corpse.Firearm.IsEquipped,"Revived peaceful merchant equipped gun");
                     Check(corpse.transform.lossyScale==revivalScale,"NPC changed size on revival");
                     Check(corpse.IsReturningHome && Vector3.Distance(corpse.HomePosition,merchantHome)<.001f,"Revival changed original home or failed to start walking back");
                     returnStart=corpse.transform.position; returnStarted=Time.time;
@@ -342,7 +358,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: NPC/player lower half buried, constant body size, immediate gradual real HP recovery on dry soil without growth/watering, full HP revives correct owner and releases soil; full body pickup; NPC walks home/trades, repeated death bodies, local cooperative revival; normal farming growth/harvest, inventory, combat and stage travel checks.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: merchant equips existing SMG, ranged hit damages player, solid cover blocks shots, unblocked ray hits, gun hidden on player death/NPC death/peaceful revival; NPC/player lower half buried, constant body size, real HP recovery without growth/watering, correct owner revival; full body pickup, NPC walks home/trades, repeated death bodies; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

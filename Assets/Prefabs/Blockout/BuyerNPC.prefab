@@ -139,10 +139,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.FarmGuardian
   maxHealth: 12
   moveSpeed: 2.5
-  attackRange: 1.9
-  attackInterval: 1.2
-  attackDamage: 20
+  attackRange: 18
+  attackInterval: 0.9
+  attackDamage: 12
+  firearmPrefab: {fileID: 6162328277556681471, guid: ad5caad823472114aa36453732810345, type: 3}
+  preferredCombatDistance: 7
   deathFallDuration: 0.45
+  revivalHealingSeconds: 4
+  plantBuriedFraction: 0.5
 --- !u!1001 &8856303849800714391
 PrefabInstance:
   m_ObjectHideFlags: 0
