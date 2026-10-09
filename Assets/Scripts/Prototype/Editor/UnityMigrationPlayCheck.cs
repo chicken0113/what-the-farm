@@ -38,6 +38,13 @@ public static class UnityMigrationPlayCheck
     static LocalFarmer teammate;
     static Vector3 returnStart;
     static float returnStarted;
+    static Vector3 revivalScale;
+    static void CheckBuried(PlantableCorpse body, float groundHeight)
+    {
+        var renderers=body.GetComponentsInChildren<Renderer>();
+        var bounds=renderers[0].bounds; foreach(var renderer in renderers.Skip(1)) bounds.Encapsulate(renderer.bounds);
+        Check(bounds.min.y<groundHeight-.1f && bounds.max.y>groundHeight+.1f && Mathf.Abs(bounds.center.y-groundHeight)<.05f,"Body is not buried to its waist");
+    }
     static Color[] Appearance(FarmGuardian merchant) => merchant.GetComponentsInChildren<Renderer>().Select(renderer =>
     {
         var block = new MaterialPropertyBlock(); renderer.GetPropertyBlock(block); return block.GetColor("_BaseColor");
@@ -266,6 +273,7 @@ public static class UnityMigrationPlayCheck
                     var center=corpse.GetComponent<BoxCollider>().bounds.center;
                     Move(new Vector3(center.x+2,.1f,center.z)); player.SelectSlot(11); Aim(center); player.Interact();
                     Check(player.HeldItem==bodyItem,"E did not pick up NPC body");
+                    revivalScale=bodyItem.transform.lossyScale;
                     surface=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     var revivePoint=new Vector3(20,0,-15);
                     Check(!world.TryPlant(bodyItem,null,revivePoint),"Corpse planted on untilled ground");
@@ -274,22 +282,23 @@ public static class UnityMigrationPlayCheck
                     Check(player.HeldItem==null && corpse!=null && revivalPlot.IsOccupied,"Planting consumed/destroyed original NPC body");
                     Check(Vector3.Dot(corpse.transform.up,Vector3.up)>.999f,"Planted NPC did not stand upright");
                     revivalCrop=corpse.GetComponent<FleeingCrop>(); revivalCrop.Grow(100);
-                    Check(corpse.IsDefeated && !revivalCrop.IsMature,"Body revived without water");
+                    Check(corpse.IsDefeated && corpse.Health==0 && corpse.transform.lossyScale==revivalScale,"NPC body still uses crop growth");
+                    var npcRecovery=corpse.GetComponent<PlantableCorpse>(); CheckBuried(npcRecovery,revivePoint.y);
+                    npcRecovery.Recover(.25f);
+                    Check(corpse.Health>0 && corpse.Health<corpse.MaxHealth && corpse.IsDefeated && !revivalPlot.GrowthStarted,"NPC did not gradually recover health on dry soil");
                     break;
                 case 11:
-                    var revivalCan=world.CreateItem(ItemKind.WateringCan,0,14,Vector3.up*5); Hold(revivalCan,11);
-                    Aim(corpse.GetComponent<BoxCollider>().bounds.center); player.Swing();
-                    Check(revivalPlot.GrowthStarted,"Watering the body with left click did not start growth");
-                    revivalCrop.Grow(100);
+                    Check(corpse.Health>corpse.MaxHealth*.0625f && corpse.IsDefeated && corpse.transform.lossyScale==revivalScale,"Automatic health recovery failed or changed body size");
+                    corpse.GetComponent<PlantableCorpse>().Recover(100);
                     Check(!corpse.IsDefeated && !corpse.IsHostile && corpse.Health==corpse.MaxHealth && !revivalPlot.IsOccupied && stage.Cleared,"NPC revival/reset or stage clear retention failed");
                     Check(corpse.ActorId==corpseOwnerId,"Revival duplicated/replaced NPC identity");
+                    Check(corpse.transform.lossyScale==revivalScale,"NPC changed size on revival");
                     Check(corpse.IsReturningHome && Vector3.Distance(corpse.HomePosition,merchantHome)<.001f,"Revival changed original home or failed to start walking back");
                     returnStart=corpse.transform.position; returnStarted=Time.time;
                     var revivedSale=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); revivedSale.MarkThrown();
                     Check(corpse.GetComponent<NpcMerchant>().TrySell(revivedSale),"Revived NPC cannot sell");
                     gold=world.Gold;
                     var walkingSale=world.CreateItem(ItemKind.Curio,0,6,corpse.GetComponents<Collider>().First(c=>c.isTrigger).bounds.center); walkingSale.MarkThrown();
-                    UnityEngine.Object.Destroy(revivalCan.gameObject);
                     break;
                 case 12:
                     Check(world.Gold>gold,"Walking revived merchant did not receive a physical item sale");
@@ -311,21 +320,26 @@ public static class UnityMigrationPlayCheck
                     helper.transform.position=new Vector3(playerCenter.x+2,.1f,playerCenter.z); Physics.SyncTransforms();
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerCenter-helperCamera.transform.position); teammate.Interact();
                     Check(teammate.HeldItem!=null && teammate.HeldItem.GetComponent<PlantableCorpse>()==player.DeathBody,"Teammate could not pick up player body");
+                    revivalScale=player.DeathBody.transform.lossyScale;
                     var playerPoint=new Vector3(23,0,-15); Check(world.TryTill(surface,playerPoint),"Player revival till failed");
                     revivalPlot=surface.FindPlot(playerPoint);
                     helper.transform.position=playerPoint+Vector3.back*2+Vector3.up*.1f;
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerPoint-helperCamera.transform.position); Physics.SyncTransforms(); teammate.Interact();
                     Check(teammate.HeldItem==null && revivalPlot.IsOccupied && player.IsDead,"Teammate planting did not preserve dead owner");
                     Check(Vector3.Dot(player.DeathBody.transform.up,Vector3.up)>.999f,"Planted player body did not stand upright");
+                    CheckBuried(player.DeathBody,playerPoint.y);
                     revivalCrop=player.DeathBody.GetComponent<FleeingCrop>(); revivalCrop.Grow(100);
-                    Check(player.IsDead,"Player revived before watering"); revivalPlot.Water(); revivalCrop.Grow(100);
+                    Check(player.IsDead && player.Health==0 && player.DeathBody.transform.lossyScale==revivalScale,"Player body still uses growth");
+                    player.DeathBody.Recover(.25f);
+                    Check(player.IsDead && player.Health>0 && player.Health<player.MaxHealth && !revivalPlot.GrowthStarted && player.DeathBody.transform.lossyScale==revivalScale,"Player health recovery/burial or constant size failed");
+                    player.DeathBody.Recover(100);
                     Check(!player.IsDead && player.Health==player.MaxHealth && player.DeathBody==null && Vector3.Distance(player.transform.position,playerPoint+Vector3.up*.1f)<.01f && !revivalPlot.IsOccupied,"Player owner failed revival at planted location");
                     Check(teammate.Health==teammate.MaxHealth,"Wrong player owner was revived");
                     break;
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: full skinned body pickup collider, upright NPC/player planting, revived NPC walks back around obstacles to original merchant spot/facing; NPC body E pickup/plant/water/revival with original identity/trade/stage clear retained; repeated death fresh body; local teammate player body pickup/plant/water revives correct owner at planted point; original colours, death reset; farming, inventory, sales, combat and stage travel checks.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: NPC/player lower half buried, constant body size, immediate gradual real HP recovery on dry soil without growth/watering, full HP revives correct owner and releases soil; full body pickup; NPC walks home/trades, repeated death bodies, local cooperative revival; normal farming growth/harvest, inventory, combat and stage travel checks.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

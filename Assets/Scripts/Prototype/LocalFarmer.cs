@@ -52,10 +52,10 @@ namespace WhatTheFarm.Prototype
                 remains.transform.localScale = new Vector3(.5f, .9f, .5f);
                 remains.transform.rotation = Quaternion.Euler(90, 0, 0);
                 DeathBody = remains.gameObject.AddComponent<PlantableCorpse>();
-                DeathBody.BindPlayer(this, world.PlayerRevivalGrowthProfile);
+                DeathBody.BindPlayer(this, world.PlayerRevivalHealingSeconds, world.PlayerPlantBuriedFraction);
                 foreach (var item in inventory) if (item != null) item.gameObject.SetActive(false);
                 emptyHand?.SetVisible(false);
-                world.SetMessage("You died. A teammate must pick up, plant and water your body to revive you.");
+                world.SetMessage("You died. A teammate must plant your body so it can recover health and revive you.");
                 return;
             }
             ReviveAt(world.SpawnPosition);
@@ -66,6 +66,10 @@ namespace WhatTheFarm.Prototype
             body.enabled = false; transform.position = position; body.enabled = true;
             IsDead = false; Health = maxHealth; verticalSpeed = 0; DeathBody = null;
             RefreshHeldItem();
+        }
+        public void RecoverWhilePlanted(float amount)
+        {
+            if (IsDead && amount > 0) Health = Mathf.Min(maxHealth, Health + amount);
         }
         [SerializeField, Min(1)] private float throwSpeed = 8f;
         private static readonly Key[] HotbarKeys =

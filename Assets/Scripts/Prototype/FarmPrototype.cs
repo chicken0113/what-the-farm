@@ -9,11 +9,13 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(1)] private int inventorySlotCount = 12;
         [SerializeField, Min(1)] private float arenaHalfSize = 49.2f;
         [SerializeField] private FarmActionAnimation playerActions;
-        [SerializeField, Tooltip("For cooperative play: wait for another player to plant and grow your body. Keep off for solo instant respawn.")]
+        [SerializeField, Tooltip("For cooperative play: wait for another player to plant your body and let its health recover. Keep off for solo instant respawn.")]
         private bool playerRevivalRequiresPlanting;
-        [SerializeField] private PlantGrowthProfile playerRevivalGrowthProfile;
+        [SerializeField, Min(.1f)] private float playerRevivalHealingSeconds = 4;
+        [SerializeField, Range(.1f, .9f)] private float playerPlantBuriedFraction = .5f;
         public bool PlayerRevivalRequiresPlanting => playerRevivalRequiresPlanting;
-        public PlantGrowthProfile PlayerRevivalGrowthProfile => playerRevivalGrowthProfile;
+        public float PlayerRevivalHealingSeconds => playerRevivalHealingSeconds;
+        public float PlayerPlantBuriedFraction => playerPlantBuriedFraction;
         public void SetPlayerRevivalRequiresPlanting(bool enabled) => playerRevivalRequiresPlanting = enabled;
         [SerializeField] private bool spawnSuppliesOnStart = true;
         public void SetSupplySpawning(bool enabled) => spawnSuppliesOnStart = enabled;
@@ -301,9 +303,9 @@ namespace WhatTheFarm.Prototype
                 SetMessage("This tilled area already has a plant. Use an empty area.");
                 return false;
             }
-            if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             var corpse = item.GetComponent<PlantableCorpse>();
             if (corpse != null) return corpse.Plant(this, item, plot, position);
+            if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             EnsureMaterials();
             Vector3 size = item.transform.lossyScale;
             GameObject plant = Instantiate(item.gameObject);
@@ -418,12 +420,15 @@ namespace WhatTheFarm.Prototype
             {
                 string target = null;
                 FarmItem item = hit.collider.GetComponentInParent<FarmItem>();
+                PlantableCorpse corpse = hit.collider.GetComponentInParent<PlantableCorpse>();
                 FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
                 NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
                 FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
                 FarmStageExit exit = hit.collider.GetComponentInParent<FarmStageExit>();
                 if (item != null)
-                    target = item.Kind == ItemKind.Corpse ? $"{item.DisplayName} - E pick up / plant and water to revive" : $"{item.DisplayName} - {item.Value} gold";
+                    target = item.Kind == ItemKind.Corpse ? $"{item.DisplayName} - E pick up / plant to recover health" : $"{item.DisplayName} - {item.Value} gold";
+                else if (corpse != null && corpse.State == PlantableCorpse.BodyState.Planted)
+                    target = $"{corpse.DisplayName} - Recovering {corpse.Health:0}/{corpse.MaxHealth:0} HP";
                 else if (crop != null)
                     target = crop.IsMature
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"

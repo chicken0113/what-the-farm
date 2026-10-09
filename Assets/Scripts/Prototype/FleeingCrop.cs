@@ -50,7 +50,7 @@ namespace WhatTheFarm.Prototype
             sourceKind = source.Kind;
             generation = source.Generation;
             baseValue = source.BaseValue;
-            growthProfile = source.GrowthProfile;
+            growthProfile = corpse == null ? source.GrowthProfile : null;
             growthTime = growthProfile != null
                 ? Mathf.Max(.1f, growthProfile.growthSeconds + generation * growthProfile.secondsPerGeneration)
                 : Mathf.Max(1.5f, 4f + generation);
@@ -76,12 +76,12 @@ namespace WhatTheFarm.Prototype
             Vector3 position = transform.position;
             position.y = groundHeight + baseOffset;
             transform.position = position;
-            gameObject.name = $"Growing {source.DisplayName}";
+            gameObject.name = corpse != null ? $"Recovering {source.DisplayName}" : $"Growing {source.DisplayName}";
         }
 
         private void Update()
         {
-            if (removed) return;
+            if (removed || corpse != null) return;
             if (!IsMature)
             {
                 Grow(Time.deltaTime);
@@ -109,7 +109,7 @@ namespace WhatTheFarm.Prototype
 
         public void Grow(float elapsed)
         {
-            if (!IsPlanted || IsMature || elapsed <= 0) return;
+            if (corpse != null || !IsPlanted || IsMature || elapsed <= 0) return;
             growthRatePercent = growthProfile != null
                 ? growthProfile.Evaluate(plot.GetLight(transform.position, transform), plot.WaterAmount, plot.SoilType)
                 : 100;
@@ -126,10 +126,6 @@ namespace WhatTheFarm.Prototype
             transform.position = position;
             if (IsMature)
             {
-                if (corpse != null)
-                {
-                    removed = true; ReleaseSoil(); corpse.CompleteRevival(world); Destroy(this); return;
-                }
                 gameObject.name = $"Mature crop +{generation}";
                 foreach (Renderer renderer in visuals)
                     foreach (Material material in renderer.sharedMaterials)
@@ -142,6 +138,11 @@ namespace WhatTheFarm.Prototype
         {
             if (plot != null) plot.Clear(this);
             plot = null;
+        }
+        public void FinishCorpseRecovery()
+        {
+            if (corpse == null) return;
+            removed = true; ReleaseSoil(); Destroy(this);
         }
 
         private void OnDestroy()
@@ -157,6 +158,7 @@ namespace WhatTheFarm.Prototype
 
         public void TakeHit(float damage)
         {
+            if (corpse != null) { world.SetMessage($"Recovering: {corpse.Health:0}/{corpse.MaxHealth:0} HP"); return; }
             if (removed) return;
             if (!IsMature)
             {

@@ -12,10 +12,12 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(.1f)] private float attackInterval = 1.2f;
         [SerializeField, Min(1)] private float attackDamage = 20;
         [SerializeField, Min(.05f)] private float deathFallDuration = .45f;
-        [SerializeField] private PlantGrowthProfile revivalGrowthProfile;
+        [SerializeField, Min(.1f)] private float revivalHealingSeconds = 4;
+        [SerializeField, Range(.1f, .9f)] private float plantBuriedFraction = .5f;
         private string actorId;
         public string ActorId => actorId;
-        public PlantGrowthProfile RevivalGrowthProfile => revivalGrowthProfile;
+        public float RevivalHealingSeconds => revivalHealingSeconds;
+        public float PlantBuriedFraction => plantBuriedFraction;
         private CharacterController body;
         private FarmPrototype world;
         private FarmFirstStage stage;
@@ -119,6 +121,10 @@ namespace WhatTheFarm.Prototype
                 StopReturning();
                 farm.SetMessage("Merchant revived, but the original spot has no walkable return route.");
             }
+        }
+        public void RecoverWhilePlanted(float amount)
+        {
+            if (defeated && amount > 0) Health = Mathf.Min(maxHealth, Health + amount);
         }
         private void StopReturning()
         {
