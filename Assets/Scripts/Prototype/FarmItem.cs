@@ -18,6 +18,16 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(0)] private int baseValue = 10;
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private Vector3 originalScale;
+        [SerializeField] private bool hasBeenPlanted;
+        private void Awake() => SetLooseCollision();
+        public bool HasBeenPlanted => hasBeenPlanted;
+        public void MarkPlanted() => hasBeenPlanted = true;
+        public void SetLooseCollision()
+        {
+            foreach (Transform part in GetComponentsInChildren<Transform>(true)) part.gameObject.layer = 8;
+            Physics.IgnoreLayerCollision(8, 9, true);
+            Physics.IgnoreLayerCollision(8, 8, true);
+        }
         public Vector3 OriginalScale
         {
             get
@@ -102,6 +112,7 @@ namespace WhatTheFarm.Prototype
             this.kind = kind;
             this.generation = generation;
             this.baseValue = baseValue;
+            SetLooseCollision();
             gameObject.name = DisplayName;
         }
     }

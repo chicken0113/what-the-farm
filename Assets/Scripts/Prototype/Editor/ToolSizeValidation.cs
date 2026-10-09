@@ -48,13 +48,13 @@ public static class ToolSizeValidation
         Near(world.WateringRadiusFor(can), .4f);
         if (world.TryWater(soil, Vector3.zero, can) != 1) throw new InvalidOperationException("Smaller water radius mismatch.");
         Near(plots[0].WaterAmount, 75); Near(plots[1].WaterAmount, 50);
-        // Growth must retain the original reference through two harvest/replant cycles.
+        // Growth must retain the original reference through a single growth and harvest.
         Vector3 baseline = hoe.OriginalScale;
         var home = soil.FindPlot(point);
-        for (int cycle = 0; cycle < 2; cycle++)
+        for (int cycle = 0; cycle < 1; cycle++)
         {
             float plantedSize = hoe.SizeMultiplier;
-            if (!world.TryPlant(hoe, home, point)) throw new InvalidOperationException("Tool replant failed.");
+            if (!world.TryPlant(hoe, home, point)) throw new InvalidOperationException("Tool planting failed.");
             FleeingCrop grown = null;
             foreach (var crop in world.GetComponentsInChildren<FleeingCrop>())
                 if (crop.Plot == home) grown = crop;
@@ -68,6 +68,7 @@ public static class ToolSizeValidation
             Near(hoe.SizeMultiplier, actualScale.y / baseline.y);
             Near(world.TillingRadiusFor(hoe), .8f * hoe.SizeMultiplier);
         }
+        if (!hoe.HasBeenPlanted || world.TryPlant(hoe, home, point)) throw new InvalidOperationException("Tool allowed a second planting.");
         // Nested imported models use the same root ratio as primitive tools.
         var imported = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<FarmItem>("Assets/Prefabs/Game/Hoe.prefab"));
         imported.Configure(ItemKind.Tool, 0, 10);
@@ -75,7 +76,7 @@ public static class ToolSizeValidation
         Near(imported.SizeMultiplier, 3); Near(world.TillingRadiusFor(imported), 2.4f);
         UnityEngine.Object.DestroyImmediate(imported.gameObject);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        Debug.Log("Linear tool radius, multi-plant watering, smaller tools and repeated harvest size inheritance validation passed.");
+        Debug.Log("Linear tool radius, multi-plant watering, smaller tools and harvest size inheritance and single planting validation passed.");
     }
 
     private static void Near(float actual, float expected)

@@ -12,7 +12,7 @@
 ## Gameplay and migration
 
 - Preserve aim-point planting, one plant per tilled area, watering to begin growth, environment bonuses to final size, grown harvest size, tool range scaling, inventory, restocking and NPC sale.
-- Intended design from Unreal work: each item may be planted only once; small loose items do not block the player; FirstFarm alone has a boundary monster that unlocks stage travel. These are not yet present in the restored Unity baseline; see README migration status.
-- Existing Unreal animations and replacement models require a supported export/import workflow before Unity can use them. Do not imply that `.uasset` files work directly in Unity.
+- Intended design from Unreal work: each item may be planted only once; small loose items do not block the player; FirstFarm alone has a boundary monster that unlocks stage travel. These are implemented in Unity; preserve the single-planting rule and restrict the encounter to FirstFarm.
+- The user explicitly forbids importing assets used in Unreal. Use Unity assets only. The new Unity packs contain no character action animations; optional Animator hooks do not constitute working animations.
 - Current gameplay is a local single-player prototype. Multiplayer, paid shops and disk saves are not implemented.
-- Use the installed Unity editor to compile and validate changes. Existing editor validation entry point: `ToolSizeValidation.Validate` (matches the restored baseline, including repeat planting).
+- Use the installed Unity editor to compile and validate changes. Unity may remain open; use the live editor migration bridge and `UnityMigrationPlayCheck.Run` for integration checks. Do not require closing the editor for ordinary C# changes. `ToolSizeValidation.Validate` also verifies growth size and linear tool ranges with single planting.

@@ -46,7 +46,7 @@ namespace WhatTheFarm.Prototype
             originalItemScale = source.OriginalScale;
             bodies = GetComponentsInChildren<Collider>();
             sourceKind = source.Kind;
-            generation = source.Generation + (source.Kind == ItemKind.Seed ? 0 : 1);
+            generation = source.Generation;
             baseValue = source.BaseValue;
             growthProfile = source.GrowthProfile;
             growthTime = growthProfile != null
@@ -173,6 +173,7 @@ namespace WhatTheFarm.Prototype
             harvested.Configure(resultKind, generation, baseValue);
             harvested.SetOriginalScale(originalItemScale);
             harvested.SetGrowthProfile(growthProfile);
+            harvested.MarkPlanted();
             harvested.OwnMaterials(ownedMaterials);
             ownedMaterials.Clear();
             transform.position += Vector3.up * .5f;
@@ -182,7 +183,7 @@ namespace WhatTheFarm.Prototype
             rigidbody.useGravity = true;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             foreach (var collider in bodies) collider.enabled = true;
-            world.SetMessage($"Harvested! Pick up and replant for a more valuable, tougher crop.");
+            world.SetMessage("Harvested! Use or sell it. Each item can only be planted once.");
             if (Application.isPlaying) Destroy(this);
             else DestroyImmediate(this);
         }

@@ -108,6 +108,7 @@ public static class NpcMerchantBuilder
         world.SetBaseMaterial(AssetDatabase.LoadAssetAtPath<Material>("Assets/Settings/PrototypeBaseMaterial.mat"));
         var location = new Vector3(100, 1, 100);
         var stock = world.CreateRestockingItem(ItemKind.Seed, 2, 10, location);
+        Vector3 stockPosition = stock.transform.position;
         for (int index = 0; index < 5; index++)
         {
             int count = world.GetComponentsInChildren<FarmItem>().Length;
@@ -118,8 +119,8 @@ public static class NpcMerchantBuilder
             if (items.Length != count + 1) throw new InvalidOperationException("Stock was not refilled immediately.");
             var replacement = items[items.Length - 1];
             if (replacement == stock || replacement.Kind != stock.Kind || replacement.Generation != stock.Generation ||
-                replacement.Value != stock.Value || replacement.transform.position != location ||
-                !replacement.GetComponent<Collider>().enabled || replacement.GetComponent<Rigidbody>().isKinematic)
+                replacement.Value != stock.Value || replacement.transform.position != stockPosition ||
+                !replacement.GetComponent<Collider>().enabled || !replacement.GetComponent<Rigidbody>().isKinematic)
                 throw new InvalidOperationException("Replacement stock differs from the supplied item.");
             stock.MarkHeld();
             if (world.GetComponentsInChildren<FarmItem>().Length != items.Length)

@@ -7,6 +7,11 @@ namespace WhatTheFarm.Prototype
         private const float HalfSize = 13f;
         [SerializeField] private Material baseMaterial;
         [SerializeField, Min(1)] private int inventorySlotCount = 12;
+        [SerializeField, Min(1)] private float arenaHalfSize = 49.2f;
+        [SerializeField] private FarmActionAnimation playerActions;
+        [SerializeField] private bool spawnSuppliesOnStart = true;
+        public void SetSupplySpawning(bool enabled) => spawnSuppliesOnStart = enabled;
+        public void SetArenaHalfSize(float size) => arenaHalfSize = size;
         [SerializeField] private bool buildArenaAtRuntime = true;
         [SerializeField] private Transform playerSpawnPoint;
         [SerializeField, Min(.1f)] private float tillingRadius = .8f;
@@ -70,7 +75,11 @@ namespace WhatTheFarm.Prototype
         private Material curioMaterial;
         private Material cropMaterial;
 
-        public float ArenaHalfSize => HalfSize - 0.8f;
+        public float ArenaHalfSize => arenaHalfSize;
+        public LocalFarmer Player => player;
+        public Vector3 SpawnPosition => playerSpawnPoint != null ? playerSpawnPoint.position + Vector3.up * .1f : new Vector3(0, .1f, -9.5f);
+        public void SetActionPrefab(FarmActionAnimation prefab) => playerActions = prefab;
+        public void RestoreGold(long amount) => Gold = amount;
         public Vector3 PlayerPosition => player == null ? Vector3.zero : player.transform.position;
 
         public void SetBaseMaterial(Material material)
@@ -85,6 +94,8 @@ namespace WhatTheFarm.Prototype
             if (buildArenaAtRuntime)
                 CreateArena();
             CreatePlayer();
+            FarmTravel.Restore(this, player);
+            if (!spawnSuppliesOnStart) return;
             CreateRestockingItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
             CreateRestockingItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
             CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(0f, 0.45f, -7f));
@@ -167,6 +178,11 @@ namespace WhatTheFarm.Prototype
 
             player = farmer.AddComponent<LocalFarmer>();
             player.Configure(this, camera, inventorySlotCount);
+            if (playerActions != null)
+            {
+                var actions = Instantiate(playerActions, camera.transform, false);
+                player.SetActions(actions);
+            }
         }
 
         private void CreateBlock(string name, Vector3 position, Vector3 scale, Material material)
@@ -182,6 +198,16 @@ namespace WhatTheFarm.Prototype
         public FarmItem CreateRestockingItem(ItemKind kind, int generation, int baseValue, Vector3 position)
         {
             FarmItem item = CreateItem(kind, generation, baseValue, position);
+            Rigidbody stockBody = item.GetComponent<Rigidbody>();
+            if (stockBody != null) stockBody.isKinematic = true;
+            Bounds bounds = new Bounds(item.transform.position, Vector3.zero);
+            bool found = false;
+            foreach (Renderer renderer in item.GetComponentsInChildren<Renderer>())
+            { if (!found) { bounds = renderer.bounds; found = true; } else bounds.Encapsulate(renderer.bounds); }
+            float floorHeight = 0;
+            if (Physics.Raycast(position + Vector3.up * 10, Vector3.down, out var floor, 100,
+                ~((1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore)) floorHeight = floor.point.y;
+            if (found) item.transform.position += Vector3.up * (floorHeight + .005f - bounds.min.y);
             item.SetStockRefill(() =>
             {
                 if (this != null)
@@ -217,6 +243,7 @@ namespace WhatTheFarm.Prototype
                 : kind == ItemKind.WateringCan
                     ? new Vector3(0.36f, 0.28f, 0.36f)
                 : Vector3.one * (kind == ItemKind.Produce ? 0.65f : 0.5f);
+            instance.transform.localScale *= .3f;
             instance.GetComponent<Renderer>().material = kind switch
             {
                 ItemKind.Seed => seedMaterial,
@@ -248,6 +275,8 @@ namespace WhatTheFarm.Prototype
         public bool TryPlant(FarmItem item, FarmPlot plot, Vector3 position)
         {
             if (item == null) return false;
+            if (item.HasBeenPlanted)
+            { SetMessage("This item was already grown. Use it or sell it; it cannot be planted again."); return false; }
             if (plot == null)
             {
                 SetMessage("Till this ground with the hoe before planting.");
@@ -297,6 +326,7 @@ namespace WhatTheFarm.Prototype
                 return false;
             }
             cropComponent.Configure(this, item, plot, position.y);
+            item.MarkPlanted();
             SetMessage($"Planted {item.DisplayName}. Use the watering can to start growth.");
             return true;
         }
@@ -357,6 +387,9 @@ namespace WhatTheFarm.Prototype
                 hand += $" | size x{player.HeldItem.SizeMultiplier:0.00} | radius {(player.HeldItem.Kind == ItemKind.Tool ? TillingRadiusFor(player.HeldItem) : WateringRadiusFor(player.HeldItem)):0.00}m";
             GUI.Box(new Rect(14f, 180f, 490f, 68f), $"Hand: {hand}\n{(Time.time < messageUntil ? message : "Till > plant > water > grow > harvest.")}");
             GUI.Box(new Rect(Screen.width - 190, 14, 176, 38), $"Gold: {Gold}");
+            GUI.Label(new Rect(Screen.width - 190, 55, 176, 25), $"HP: {player.Health:0} / {player.MaxHealth:0}");
+            var stage = GetComponent<FarmFirstStage>();
+            if (stage != null) GUI.Label(new Rect(20, 260, 540, 25), stage.Cleared ? "Guardian defeated. Purple exit + E." : stage.Spawned ? "Defeat the guardian to unlock the exit." : "Leave the original farm to encounter the guardian.");
             if (Time.time < dialogueUntil)
             {
                 float width = Mathf.Min(620, Screen.width - 28);
@@ -376,6 +409,8 @@ namespace WhatTheFarm.Prototype
                 FarmItem item = hit.collider.GetComponentInParent<FarmItem>();
                 FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
                 NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
+                FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
+                FarmStageExit exit = hit.collider.GetComponentInParent<FarmStageExit>();
                 if (item != null)
                     target = $"{item.DisplayName} - {item.Value} gold";
                 else if (crop != null)
@@ -384,6 +419,8 @@ namespace WhatTheFarm.Prototype
                         : $"Growing - size rate {crop.GrowthRatePercent:0}% | water {crop.Plot.WaterAmount:0}/100";
                 else if (npc != null)
                     target = $"{npc.DisplayName} - E talk / Q throw to sell";
+                else if (guardian != null) target = $"Guardian - {guardian.Health:0}/{guardian.MaxHealth:0} HP";
+                else if (exit != null) target = exit.CanTravel ? "E: next stage" : "Defeat the guardian first";
                 else if (hit.collider.TryGetComponent(out SoilSurface soil))
                 {
                     FarmPlot plot = soil.FindPlot(hit.point);

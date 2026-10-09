@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/FarmPrototype.unity
     guid: 6964d24109946104282250be4fbdc6cc
+  - enabled: 1
+    path: Assets/Scenes/StageTwo.unity
+    guid: 7753370ebb1de2e41a092832c2960f80
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

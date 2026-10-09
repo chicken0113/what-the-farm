@@ -17,6 +17,32 @@ namespace WhatTheFarm.Prototype
         private float pitch;
         private float verticalSpeed;
         private float nextSwingTime;
+        private FarmActionAnimation actions;
+        [SerializeField, Min(1)] private float maxHealth = 100;
+        public float Health { get; private set; } = 100;
+        public float MaxHealth => maxHealth;
+        public int SelectedSlot => selectedSlot;
+        public Camera View => view;
+        public FarmActionAnimation Actions => actions;
+        public FarmItem[] CaptureInventory() => (FarmItem[])inventory.Clone();
+        public void SetActions(FarmActionAnimation model) { actions = model; RefreshHeldItem(); }
+        public void RestoreInventory(FarmItem[] items, int selected)
+        {
+            inventory = new FarmItem[Mathf.Max(inventory.Length, items.Length)];
+            System.Array.Copy(items, inventory, items.Length);
+            selectedSlot = Mathf.Clamp(selected, 0, inventory.Length-1);
+            foreach (var item in inventory) if (item != null) item.transform.SetParent(view.transform, true);
+            RefreshHeldItem();
+        }
+        public void ReceiveDamage(float damage)
+        {
+            if (damage <= 0) return;
+            Health = Mathf.Max(0, Health-damage);
+            if (Health > 0) { world.SetMessage($"Guardian hit! HP {Health:0}/{MaxHealth:0}"); return; }
+            Health = maxHealth; verticalSpeed = 0;
+            body.enabled = false; transform.position = world.SpawnPosition; body.enabled = true;
+            world.SetMessage("Knocked out. Returned to the farm; your items are kept.");
+        }
         [SerializeField, Min(1)] private float throwSpeed = 8f;
         private static readonly Key[] HotbarKeys =
         {
@@ -34,6 +60,8 @@ namespace WhatTheFarm.Prototype
             world = prototype;
             view = playerCamera;
             body = GetComponent<CharacterController>();
+            gameObject.layer = 9;
+            Health = maxHealth;
             inventory = new FarmItem[Mathf.Max(1, slotCount)];
             LockCursor();
         }
@@ -123,8 +151,9 @@ namespace WhatTheFarm.Prototype
             Cursor.visible = true;
         }
 
-        private void SelectSlot(int index)
+        public void SelectSlot(int index)
         {
+            if (inventory == null || index < 0 || index >= inventory.Length) return;
             selectedSlot = index;
             RefreshHeldItem();
         }
@@ -141,7 +170,8 @@ namespace WhatTheFarm.Prototype
                 item.gameObject.SetActive(inHand);
                 if (inHand)
                 {
-                    item.transform.localPosition = new Vector3(0.42f, -0.36f, 0.8f);
+                    item.transform.SetParent(actions != null ? actions.Grip : view.transform, true);
+                    item.transform.localPosition = actions != null ? Vector3.zero : new Vector3(0.42f, -0.36f, 0.8f);
                     item.transform.localRotation = Quaternion.Euler(0f, 25f, 20f);
                 }
             }
@@ -182,7 +212,7 @@ namespace WhatTheFarm.Prototype
                 hit.collider.GetComponent<SoilSurface>() != null;
         }
 
-        private void Interact()
+        public void Interact()
         {
             if (!TryLook(out RaycastHit hit))
             {
@@ -191,6 +221,8 @@ namespace WhatTheFarm.Prototype
             }
 
             FarmItem groundItem = hit.collider.GetComponentInParent<FarmItem>();
+            FarmStageExit exit = hit.collider.GetComponentInParent<FarmStageExit>();
+            if (exit != null) { exit.TryTravel(world, this); return; }
             NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
             if (npc != null)
             {
@@ -215,6 +247,7 @@ namespace WhatTheFarm.Prototype
                 groundItem.transform.SetParent(view.transform, false);
                 inventory[slot] = groundItem;
                 RefreshHeldItem();
+                actions?.PlayPickup();
                 world.SetMessage($"Picked up {groundItem.DisplayName} in slot {slot + 1}.");
             }
             else if (TryLookSoil(out RaycastHit soilHit))
@@ -231,6 +264,7 @@ namespace WhatTheFarm.Prototype
                 {
                     inventory[selectedSlot] = null;
                     Destroy(item.gameObject);
+                    actions?.PlaySwing();
                 }
             }
             else
@@ -260,16 +294,19 @@ namespace WhatTheFarm.Prototype
             world.SetMessage($"Threw {item.DisplayName}. Throw to the buyer to sell it.");
         }
 
-        private void Swing()
+        public void Swing()
         {
             if (Time.time < nextSwingTime)
                 return;
             nextSwingTime = Time.time + 0.42f;
+            actions?.PlaySwing();
 
             if (!TryLook(out RaycastHit hit))
                 return;
 
             FarmItem item = HeldItem;
+            FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
+            if (guardian != null) { guardian.TakeHit(item != null && item.Kind == ItemKind.Tool ? 2*item.SizeMultiplier : 1); return; }
             FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
             if (crop != null)
             {

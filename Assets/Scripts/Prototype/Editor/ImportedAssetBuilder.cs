@@ -165,11 +165,8 @@ public static class ImportedAssetBuilder
             if (drop == null || drop.Kind != prefab.Kind || drop.transform.lossyScale != grownScale ||
                 Vector3.Distance(BoundsOf(drop.gameObject).size, grownSize) > .001f)
                 throw new InvalidOperationException("Imported harvested model lost its grown size.");
-            if (!world.TryPlant(drop, plot, point)) throw new InvalidOperationException("Harvested model could not be replanted.");
-            var replanted = world.GetComponentsInChildren<FleeingCrop>()[^1];
-            if (Vector3.Distance(replanted.transform.lossyScale, grownScale) > .001f)
-                throw new InvalidOperationException("Imported replant lost harvested size.");
-            plot.Water(50); replanted.Grow(20);
+            if (!drop.HasBeenPlanted || world.TryPlant(drop, plot, point))
+                throw new InvalidOperationException("Harvested model allowed a second planting.");
         }
         foreach (var renderer in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             foreach (var material in renderer.sharedMaterials)

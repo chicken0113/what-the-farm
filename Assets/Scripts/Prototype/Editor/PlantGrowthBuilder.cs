@@ -135,12 +135,8 @@ public static class PlantGrowthBuilder
             Vector3.Distance(drop.GetComponent<Renderer>().bounds.size, grownBounds) > .001f ||
             drop.GetComponent<Rigidbody>().isKinematic || !drop.GetComponent<Rigidbody>().useGravity)
             throw new InvalidOperationException("Harvest changed grown size/model or did not create a pickup.");
-        if (!world.TryPlant(drop, area, area.transform.position) ||
-            Vector3.Distance(world.GetComponentInChildren<FleeingCrop>().transform.lossyScale, grownScale) > .001f)
-            throw new InvalidOperationException("Replanting lost harvested size.");
-        var replanted = world.GetComponentInChildren<FleeingCrop>();
-        replanted.Grow(20);
-        UnityEngine.Object.DestroyImmediate(replanted.gameObject);
+        if (!drop.HasBeenPlanted || world.TryPlant(drop, area, area.transform.position))
+            throw new InvalidOperationException("Harvested object allowed a second planting.");
         var harvested = world.GetComponentsInChildren<FarmItem>();
         if (harvested[harvested.Length - 1].GrowthProfile != profile)
             throw new InvalidOperationException("Harvest lost the object's growth profile.");
@@ -173,6 +169,6 @@ public static class PlantGrowthBuilder
         UnityEngine.Object.DestroyImmediate(world.gameObject);
         UnityEngine.Object.DestroyImmediate(ground);
         UnityEngine.Object.DestroyImmediate(profile);
-        Debug.Log("Growth environment, harvest size/model preservation and replant size validation passed.");
+        Debug.Log("Growth environment, harvest size/model preservation and single planting validation passed.");
     }
 }
