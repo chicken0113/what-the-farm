@@ -22,6 +22,7 @@ namespace WhatTheFarm.Prototype
         private Vector3 originalItemScale;
         private float baseOffset;
         private bool removed;
+        private PlantableCorpse corpse;
         private float groundHeight;
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private float growthRatePercent = 100;
@@ -40,6 +41,7 @@ namespace WhatTheFarm.Prototype
         public void Configure(FarmPrototype prototype, FarmItem source, FarmPlot homePlot, float soilHeight)
         {
             world = prototype;
+            corpse = GetComponent<PlantableCorpse>();
             plot = homePlot;
             groundHeight = soilHeight;
             initialScale = transform.localScale;
@@ -55,8 +57,8 @@ namespace WhatTheFarm.Prototype
             maxHealth = 3f + generation * 2f;
             health = maxHealth;
             visuals = GetComponentsInChildren<Renderer>();
-            foreach (Renderer renderer in visuals)
-                ownedMaterials.AddRange(renderer.sharedMaterials);
+            if (corpse == null)
+                foreach (Renderer renderer in visuals) ownedMaterials.AddRange(renderer.sharedMaterials);
             Bounds bounds = new Bounds(transform.position, Vector3.zero);
             bool found = false;
             foreach (Renderer renderer in visuals)
@@ -124,6 +126,10 @@ namespace WhatTheFarm.Prototype
             transform.position = position;
             if (IsMature)
             {
+                if (corpse != null)
+                {
+                    removed = true; ReleaseSoil(); corpse.CompleteRevival(world); Destroy(this); return;
+                }
                 gameObject.name = $"Mature crop +{generation}";
                 foreach (Renderer renderer in visuals)
                     foreach (Material material in renderer.sharedMaterials)

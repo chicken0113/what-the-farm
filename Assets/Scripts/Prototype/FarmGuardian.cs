@@ -12,6 +12,10 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(.1f)] private float attackInterval = 1.2f;
         [SerializeField, Min(1)] private float attackDamage = 20;
         [SerializeField, Min(.05f)] private float deathFallDuration = .45f;
+        [SerializeField] private PlantGrowthProfile revivalGrowthProfile;
+        private string actorId;
+        public string ActorId => actorId;
+        public PlantGrowthProfile RevivalGrowthProfile => revivalGrowthProfile;
         private CharacterController body;
         private FarmPrototype world;
         private FarmFirstStage stage;
@@ -30,6 +34,7 @@ namespace WhatTheFarm.Prototype
         private void Awake()
         {
             body = GetComponent<CharacterController>(); Health = maxHealth;
+            actorId = System.Guid.NewGuid().ToString("N");
             homePosition = transform.position; homeRotation = transform.rotation; homeLayer = gameObject.layer;
             originalColliders = GetComponentsInChildren<Collider>(true);
             originalColliderStates = new bool[originalColliders.Length];
@@ -73,9 +78,32 @@ namespace WhatTheFarm.Prototype
                     originalColliders[i].enabled = originalColliderStates[i];
             stage?.MerchantReturnedToPeace(this);
         }
+        public void ReviveFromPlant(FarmPrototype farm)
+        {
+            world = farm; stage = farm.GetComponent<FarmFirstStage>();
+            defeated = false; IsHostile = false; Health = maxHealth; nextAttack = 0; fallSpeed = 0;
+            transform.rotation = homeRotation;
+            foreach (Transform part in GetComponentsInChildren<Transform>(true)) part.gameObject.layer = homeLayer;
+            for (int i = 0; i < originalColliders.Length; i++)
+                if (originalColliders[i] != null && originalColliders[i] != body)
+                    originalColliders[i].enabled = originalColliderStates[i];
+            foreach (var animator in GetComponentsInChildren<Animator>()) animator.enabled = true;
+            body.enabled = false;
+            var capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null)
+            {
+                float bottom = transform.TransformPoint(capsule.center).y - capsule.height * Mathf.Abs(transform.lossyScale.y) * .5f;
+                if (Physics.Raycast(transform.position + Vector3.up * .5f, Vector3.down, out var ground, 5,
+                    ~((1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore))
+                    transform.position += Vector3.up * (ground.point.y - bottom);
+            }
+            homePosition = transform.position;
+            GetComponent<NpcMerchant>()?.BindWorld(farm);
+            gameObject.name = GetComponent<NpcMerchant>()?.DisplayName ?? "NPC";
+        }
         private void Update()
         {
-            if (defeated || !IsHostile || world == null || world.Player == null) return;
+            if (defeated || !IsHostile || world == null || world.Player == null || world.Player.IsDead) return;
             var player = world.Player;
             Vector3 direction = player.transform.position-transform.position; direction.y = 0;
             Vector3 movement = direction.magnitude > attackRange*.75f ? direction.normalized*moveSpeed : Vector3.zero;
@@ -86,7 +114,7 @@ namespace WhatTheFarm.Prototype
         }
         public bool Attack(LocalFarmer player)
         {
-            if (defeated || !IsHostile || player == null || Time.time < nextAttack || Vector3.Distance(player.transform.position, transform.position) > attackRange) return false;
+            if (defeated || !IsHostile || player == null || player.IsDead || Time.time < nextAttack || Vector3.Distance(player.transform.position, transform.position) > attackRange) return false;
             var start = transform.position+Vector3.up*.9f;
             var end = player.transform.position+Vector3.up*.9f;
             foreach (var hit in Physics.RaycastAll(start, (end-start).normalized, (end-start).magnitude, ~0, QueryTriggerInteraction.Ignore))
@@ -128,6 +156,7 @@ namespace WhatTheFarm.Prototype
                 if (!float.IsPositiveInfinity(bottom)) transform.position += Vector3.up * (groundHeight - bottom);
                 yield return null;
             }
+            gameObject.AddComponent<PlantableCorpse>().BindNpc(this);
         }
     }
 }

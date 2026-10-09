@@ -23,6 +23,9 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(1)] private float maxHealth = 100;
         public float Health { get; private set; } = 100;
         public float MaxHealth => maxHealth;
+        public bool IsDead { get; private set; }
+        public string ActorId { get; private set; }
+        public PlantableCorpse DeathBody { get; private set; }
         public int SelectedSlot => selectedSlot;
         public Camera View => view;
         public FarmActionAnimation Actions => actions;
@@ -38,13 +41,31 @@ namespace WhatTheFarm.Prototype
         }
         public void ReceiveDamage(float damage)
         {
-            if (damage <= 0) return;
+            if (damage <= 0 || IsDead) return;
             Health = Mathf.Max(0, Health-damage);
             if (Health > 0) { world.SetMessage($"Guardian hit! HP {Health:0}/{MaxHealth:0}"); return; }
-            Health = maxHealth; verticalSpeed = 0;
-            body.enabled = false; transform.position = world.SpawnPosition; body.enabled = true;
             foreach (var merchant in FindObjectsByType<FarmGuardian>(FindObjectsSortMode.None)) merchant.ResetAfterPlayerDeath();
+            if (world.PlayerRevivalRequiresPlanting)
+            {
+                IsDead = true; body.enabled = false;
+                var remains = world.CreateItem(ItemKind.Corpse, 0, 0, transform.position + Vector3.up * .4f);
+                remains.transform.localScale = new Vector3(.5f, .9f, .5f);
+                remains.transform.rotation = Quaternion.Euler(90, 0, 0);
+                DeathBody = remains.gameObject.AddComponent<PlantableCorpse>();
+                DeathBody.BindPlayer(this, world.PlayerRevivalGrowthProfile);
+                foreach (var item in inventory) if (item != null) item.gameObject.SetActive(false);
+                emptyHand?.SetVisible(false);
+                world.SetMessage("You died. A teammate must pick up, plant and water your body to revive you.");
+                return;
+            }
+            ReviveAt(world.SpawnPosition);
             world.SetMessage("Knocked out. Returned to the farm; your items are kept.");
+        }
+        public void ReviveAt(Vector3 position)
+        {
+            body.enabled = false; transform.position = position; body.enabled = true;
+            IsDead = false; Health = maxHealth; verticalSpeed = 0; DeathBody = null;
+            RefreshHeldItem();
         }
         [SerializeField, Min(1)] private float throwSpeed = 8f;
         private static readonly Key[] HotbarKeys =
@@ -65,6 +86,7 @@ namespace WhatTheFarm.Prototype
             body = GetComponent<CharacterController>();
             gameObject.layer = 9;
             Health = maxHealth;
+            ActorId = System.Guid.NewGuid().ToString("N");
             inventory = new FarmItem[Mathf.Max(1, slotCount)];
             emptyHand = FarmerEmptyHand.Create(view.transform);
             LockCursor();
@@ -72,6 +94,7 @@ namespace WhatTheFarm.Prototype
 
         private void Update()
         {
+            if (IsDead) return;
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
             if (keyboard == null || mouse == null)
@@ -219,6 +242,7 @@ namespace WhatTheFarm.Prototype
 
         public void Interact()
         {
+            if (IsDead) return;
             if (!TryLook(out RaycastHit hit))
             {
                 world.SetMessage("Look at an item or a tilled plot.");
@@ -229,7 +253,7 @@ namespace WhatTheFarm.Prototype
             FarmStageExit exit = hit.collider.GetComponentInParent<FarmStageExit>();
             if (exit != null) { exit.TryTravel(world, this); return; }
             NpcMerchant npc = hit.collider.GetComponentInParent<NpcMerchant>();
-            if (npc != null)
+            if (npc != null && !npc.IsDefeated)
             {
                 npc.Talk();
                 return;
@@ -268,7 +292,7 @@ namespace WhatTheFarm.Prototype
                 if (world.TryPlant(item, plot, soilHit.point))
                 {
                     inventory[selectedSlot] = null;
-                    Destroy(item.gameObject);
+                    if (item.GetComponent<PlantableCorpse>() == null) Destroy(item.gameObject);
                     RefreshHeldItem();
                     actions?.PlaySwing();
                 }
@@ -279,6 +303,7 @@ namespace WhatTheFarm.Prototype
 
         public void ThrowSelectedItem()
         {
+            if (IsDead) return;
             FarmItem item = HeldItem;
             if (item == null)
                 return;
@@ -287,7 +312,7 @@ namespace WhatTheFarm.Prototype
             item.transform.SetParent(null);
             item.transform.position = view.transform.position + view.transform.forward * .9f;
             foreach (Collider collider in item.GetComponentsInChildren<Collider>(true))
-                collider.enabled = true;
+                collider.enabled = item.Kind != ItemKind.Corpse || collider is BoxCollider;
             Rigidbody rb = item.GetComponent<Rigidbody>();
             if (rb != null)
             {
@@ -303,6 +328,7 @@ namespace WhatTheFarm.Prototype
 
         public void Swing()
         {
+            if (IsDead) return;
             if (Time.time < nextSwingTime)
                 return;
             nextSwingTime = Time.time + 0.42f;
@@ -313,7 +339,7 @@ namespace WhatTheFarm.Prototype
 
             FarmItem item = HeldItem;
             FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
-            if (guardian != null) { guardian.TakeHit(item != null && item.Kind == ItemKind.Tool ? 2*item.SizeMultiplier : 1); return; }
+            if (guardian != null && !guardian.IsDefeated) { guardian.TakeHit(item != null && item.Kind == ItemKind.Tool ? 2*item.SizeMultiplier : 1); return; }
             FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
             if (crop != null)
             {

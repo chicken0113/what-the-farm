@@ -8,7 +8,8 @@ namespace WhatTheFarm.Prototype
         Produce,
         Tool,
         WateringCan,
-        Curio
+        Curio,
+        Corpse
     }
 
     public sealed class FarmItem : MonoBehaviour
@@ -82,7 +83,7 @@ namespace WhatTheFarm.Prototype
 
         public bool ClaimSale()
         {
-            if (!WasThrown || IsSold || GetComponent<FleeingCrop>() != null) return false;
+            if (kind == ItemKind.Corpse || !WasThrown || IsSold || GetComponent<FleeingCrop>() != null) return false;
             Rigidbody body = GetComponent<Rigidbody>();
             if (body == null || body.isKinematic) return false;
             IsSold = true;
@@ -94,6 +95,7 @@ namespace WhatTheFarm.Prototype
         {
             get
             {
+                if (Kind == ItemKind.Corpse) return GetComponent<PlantableCorpse>()?.DisplayName ?? "Body";
                 string name = Kind switch
                 {
                     ItemKind.Seed => "Seed",

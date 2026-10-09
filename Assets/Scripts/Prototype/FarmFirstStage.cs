@@ -23,7 +23,7 @@ namespace WhatTheFarm.Prototype
         private void Update() { if (world != null) CheckBoundary(world.Player); }
         public bool CheckBoundary(LocalFarmer player)
         {
-            if (Spawned || Cleared || player == null) return false;
+            if (Spawned || Cleared || player == null || player.IsDead) return false;
             Vector3 offset = player.transform.position-transform.position;
             if (Mathf.Abs(offset.x) <= originalHalfSize.x && Mathf.Abs(offset.z) <= originalHalfSize.y) return false;
             ResolveMerchant();
