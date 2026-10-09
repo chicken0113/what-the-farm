@@ -201,9 +201,10 @@ public static class UnityMigrationPlayCheck
                     Check(!stage.CheckBoundary(player),"Duplicate monster spawn"); enemyStart=stage.Monster.transform.position;
                     Move(new Vector3(18,.1f,7.5f)); // Clear sight line beside the seller, beyond melee reach.
                     Check(stage.Monster.Firearm!=null && stage.Monster.Firearm.IsEquipped,"Hostile merchant did not equip existing gun model");
-                    Check(stage.Monster.Firearm.GetComponentsInChildren<Collider>().All(c=>!c.enabled),"Held gun has physical collision"); health=player.Health;
+                    Check(stage.Monster.Firearm.GetComponentsInChildren<Collider>().All(c=>!c.enabled),"Held gun has physical collision"); health=player.Health; shotWaitStarted=Time.time;
                     break;
                 case 4:
+                    if(player.Health==health && Time.time-shotWaitStarted<2) return;
                     Check(stage.Monster.Firearm.ShotsFired>0 && player.Health<health && Vector3.Distance(stage.Monster.transform.position,player.transform.position)>4,"Merchant did not damage player at gun range: shots="+stage.Monster.Firearm.ShotsFired+" HP="+player.Health+" before="+health+" distance="+Vector3.Distance(stage.Monster.transform.position,player.transform.position));
                     Check(Vector3.Distance(enemyStart,stage.Monster.transform.position)>.1f,"Monster did not chase: start="+enemyStart+" now="+stage.Monster.transform.position+" time="+Time.time);
                     var modelForward=stage.Monster.transform.Find("Visual").forward;
@@ -215,7 +216,26 @@ public static class UnityMigrationPlayCheck
                     health=player.Health; int beforeShots=gun.ShotsFired;
                     Check(!gun.TryFire(player,12) && player.Health==health && gun.ShotsFired==beforeShots,"Merchant shot through solid cover");
                     cover.GetComponent<Collider>().enabled=false; UnityEngine.Object.Destroy(cover); Physics.SyncTransforms();
-                    Check(gun.TryFire(player,1) && player.Health==health-1,"Unblocked gun ray did not hit player");
+                    gun.AdvanceProjectiles(2); health=player.Health;
+                    Check(gun.TryFire(player,1) && player.Health==health && gun.ActiveBulletCount==1,"Bullet caused instant damage");
+                    gun.AdvanceProjectiles(.01f); Check(player.Health==health,"Bullet hit before reaching player");
+                    gun.AdvanceProjectiles(2); Check(player.Health==health-1 && gun.ActiveBulletCount==0,"Stationary player was not hit by travelling bullet");
+                    var dodgeStart=player.transform.position;
+                    var sideways=Vector3.Cross(Vector3.up,(dodgeStart-stage.Monster.transform.position).normalized).normalized;
+                    health=player.Health; Check(gun.TryFire(player,1),"Dodge test could not fire");
+                    for(int step=0;step<180;step++)
+                    {
+                        Move(dodgeStart+sideways*(7f*.01f*(step+1)));
+                        gun.AdvanceProjectiles(.01f);
+                    }
+                    Check(player.Health==health && gun.ActiveBulletCount==0,"Sprinting player could not dodge fixed-direction bullet");
+                    Move(dodgeStart); Check(gun.TryFire(player,1),"Incoming cover test could not fire");
+                    var incomingCover=GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    incomingCover.transform.position=(gun.MuzzlePosition+dodgeStart+Vector3.up*1.05f)*.5f;
+                    incomingCover.transform.localScale=new Vector3(2,3,2); Physics.SyncTransforms();
+                    gun.AdvanceProjectiles(2);
+                    Check(player.Health==health && gun.ActiveBulletCount==0,"Travelling bullet passed through newly inserted cover");
+                    incomingCover.GetComponent<Collider>().enabled=false; UnityEngine.Object.Destroy(incomingCover);
                     Move(stage.Monster.transform.position+Vector3.right*1.5f); health=player.Health; shotWaitStarted=Time.time;
                     break;
                 case 5:
@@ -358,7 +378,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: merchant equips existing SMG, ranged hit damages player, solid cover blocks shots, unblocked ray hits, gun hidden on player death/NPC death/peaceful revival; NPC/player lower half buried, constant body size, real HP recovery without growth/watering, correct owner revival; full body pickup, NPC walks home/trades, repeated death bodies; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

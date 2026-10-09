@@ -114,6 +114,8 @@ MonoBehaviour:
   rightGrip: {fileID: 318283299413079158}
   leftGrip: {fileID: 1348329875424144324}
   holdPosition: {x: 0.18, y: 1.22, z: 0.3}
+  bulletSpeed: 18
+  bulletMaxDistance: 30
 --- !u!1 &6531424645565499214
 GameObject:
   m_ObjectHideFlags: 0

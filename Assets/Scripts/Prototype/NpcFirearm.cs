@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -10,17 +11,27 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Transform rightGrip;
         [SerializeField] private Transform leftGrip;
         [SerializeField] private Vector3 holdPosition = new(.18f, 1.22f, .3f);
+        [SerializeField, Min(1)] private float bulletSpeed = 18;
+        [SerializeField, Min(1)] private float bulletMaxDistance = 30;
+        private sealed class Bullet
+        {
+            public Vector3 position, direction;
+            public float travelled, damage;
+            public LineRenderer visual;
+        }
+        private readonly List<Bullet> bullets = new();
         private FarmGuardian owner;
         private LocalFarmer target;
         private Transform[] armBones;
         private Quaternion[] restPose;
-        private LineRenderer tracer;
         private GameObject flash;
         private Material effectMaterial;
         private float effectUntil;
         private float recoil;
         public bool IsEquipped => gameObject.activeSelf && owner != null && owner.IsHostile;
         public int ShotsFired { get; private set; }
+        public int ActiveBulletCount => bullets.Count;
+        public float BulletSpeed => bulletSpeed;
         public Vector3 MuzzlePosition => muzzle.position;
         public Vector3 AimDirection => transform.forward;
         public void Configure(Transform barrel, Transform right, Transform left)
@@ -34,9 +45,6 @@ namespace WhatTheFarm.Prototype
             restPose = armBones.Select(bone => bone != null ? bone.localRotation : Quaternion.identity).ToArray();
             effectMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             effectMaterial.SetColor("_BaseColor", new Color(1, .65f, .15f));
-            tracer = gameObject.AddComponent<LineRenderer>(); tracer.sharedMaterial = effectMaterial;
-            tracer.useWorldSpace = true; tracer.positionCount = 2; tracer.startWidth = .015f; tracer.endWidth = .006f;
-            tracer.shadowCastingMode = ShadowCastingMode.Off; tracer.receiveShadows = false; tracer.enabled = false;
             flash = GameObject.CreatePrimitive(PrimitiveType.Sphere); flash.name = "Muzzle Flash";
             var collider = flash.GetComponent<Collider>(); collider.enabled = false; Destroy(collider);
             flash.transform.SetParent(muzzle, false); flash.transform.localScale = Vector3.one * .08f;
@@ -45,7 +53,7 @@ namespace WhatTheFarm.Prototype
         }
         public void SetEquipped(bool equipped)
         {
-            if (!equipped) { RestoreArms(); recoil = 0; if (tracer != null) tracer.enabled = false; if (flash != null) flash.SetActive(false); }
+            if (!equipped) { RestoreArms(); recoil = 0; ClearBullets(); if (flash != null) flash.SetActive(false); }
             gameObject.SetActive(equipped);
         }
         private void RestoreArms()
@@ -92,25 +100,60 @@ namespace WhatTheFarm.Prototype
             Vector3 end = player.transform.position + Vector3.up * 1.05f;
             if (!ClearSegment(chest, end, player) || !ClearSegment(chest, muzzle.position, player)) return false;
             Vector3 direction = (end - muzzle.position).normalized;
-            RaycastHit? first = null;
-            foreach (var hit in Physics.RaycastAll(muzzle.position, direction, Vector3.Distance(muzzle.position, end) + .1f, ~0, QueryTriggerInteraction.Ignore))
-            {
-                if (hit.collider.transform.IsChildOf(owner.transform)) continue;
-                if (!first.HasValue || hit.distance < first.Value.distance) first = hit;
-            }
-            if (first.HasValue) end = first.Value.point;
-            tracer.SetPosition(0, muzzle.position); tracer.SetPosition(1, end); tracer.enabled = true;
+            var visual = new GameObject("NPC Bullet").AddComponent<LineRenderer>();
+            visual.sharedMaterial = effectMaterial; visual.useWorldSpace = true; visual.positionCount = 2;
+            visual.startWidth = .025f; visual.endWidth = .015f;
+            visual.shadowCastingMode = ShadowCastingMode.Off; visual.receiveShadows = false;
+            visual.SetPosition(0, muzzle.position); visual.SetPosition(1, muzzle.position + direction * .15f);
+            // The direction is fixed at firing time; bullets never follow the target.
+            bullets.Add(new Bullet { position = muzzle.position, direction = direction, damage = damage, visual = visual });
             flash.SetActive(true); effectUntil = Time.time + .07f; recoil = .045f; ShotsFired++;
-            if (first.HasValue && first.Value.collider.GetComponentInParent<LocalFarmer>() == player) player.ReceiveDamage(damage);
             return true;
         }
+        public void AdvanceProjectiles(float deltaTime)
+        {
+            if (deltaTime <= 0) return;
+            for (int i = bullets.Count - 1; i >= 0; i--)
+            {
+                var bullet = bullets[i];
+                float step = Mathf.Min(bulletSpeed * deltaTime, bulletMaxDistance - bullet.travelled);
+                RaycastHit? first = null;
+                // Sweep the entire frame's travel so bullets cannot skip thin walls at low FPS.
+                foreach (var hit in Physics.RaycastAll(bullet.position, bullet.direction, step, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider.transform.IsChildOf(owner.transform)) continue;
+                    if (!first.HasValue || hit.distance < first.Value.distance) first = hit;
+                }
+                if (first.HasValue)
+                {
+                    var farmer = first.Value.collider.GetComponentInParent<LocalFarmer>();
+                    Destroy(bullet.visual.gameObject); bullets.RemoveAt(i);
+                    // Damage may reset the merchant and clear the remaining bullets.
+                    if (farmer != null && !farmer.IsDead) farmer.ReceiveDamage(bullet.damage);
+                    if (!IsEquipped) return;
+                    continue;
+                }
+                bullet.position += bullet.direction * step; bullet.travelled += step;
+                bullet.visual.SetPosition(0, bullet.position - bullet.direction * Mathf.Min(.45f, bullet.travelled));
+                bullet.visual.SetPosition(1, bullet.position);
+                if (bullet.travelled >= bulletMaxDistance)
+                { Destroy(bullet.visual.gameObject); bullets.RemoveAt(i); }
+            }
+        }
+        private void ClearBullets()
+        {
+            foreach (var bullet in bullets) if (bullet.visual != null) Destroy(bullet.visual.gameObject);
+            bullets.Clear();
+        }
+        private void Update() { if (IsEquipped) AdvanceProjectiles(Time.deltaTime); }
         private void LateUpdate()
         {
             if (!IsEquipped) return;
             recoil = Mathf.MoveTowards(recoil, 0, Time.deltaTime * .5f);
             if (target != null && !target.IsDead) AimAt(target);
-            if (Time.time >= effectUntil) { tracer.enabled = false; flash.SetActive(false); }
+            if (Time.time >= effectUntil) flash.SetActive(false);
         }
-        private void OnDestroy() { if (effectMaterial != null) Destroy(effectMaterial); }
+        private void OnDisable() { ClearBullets(); }
+        private void OnDestroy() { ClearBullets(); if (effectMaterial != null) Destroy(effectMaterial); }
     }
 }
