@@ -12,7 +12,7 @@ namespace WhatTheFarm.Prototype
         public void Configure(FarmFirstStage stage) => firstStage = stage;
         public bool TryTravel(FarmPrototype world, LocalFarmer player)
         {
-            if (!CanTravel) { world.SetMessage("Defeat the guardian before entering the next stage."); return false; }
+            if (!CanTravel) { world.SetMessage("Defeat the hostile merchant before entering the next stage."); return false; }
             if (!Application.CanStreamedLevelBeLoaded(nextScene)) { world.SetMessage("Next stage is missing from the build settings."); return false; }
             FarmTravel.Capture(world, player);
             SceneManager.LoadScene(nextScene);

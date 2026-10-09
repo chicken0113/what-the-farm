@@ -391,7 +391,7 @@ namespace WhatTheFarm.Prototype
             GUI.Box(new Rect(Screen.width - 190, 14, 176, 38), $"Gold: {Gold}");
             GUI.Label(new Rect(Screen.width - 190, 55, 176, 25), $"HP: {player.Health:0} / {player.MaxHealth:0}");
             var stage = GetComponent<FarmFirstStage>();
-            if (stage != null) GUI.Label(new Rect(20, 260, 540, 25), stage.Cleared ? "Guardian defeated. Purple exit + E." : stage.Spawned ? "Defeat the guardian to unlock the exit." : "Leave the original farm to encounter the guardian.");
+            if (stage != null) GUI.Label(new Rect(20, 260, 540, 25), stage.Cleared ? "Merchant defeated. Purple exit + E." : stage.Spawned ? "Defeat the hostile merchant to unlock the exit." : "Hit the merchant or leave the original farm to start combat.");
             if (Time.time < dialogueUntil)
             {
                 float width = Mathf.Min(620, Screen.width - 28);
@@ -420,9 +420,9 @@ namespace WhatTheFarm.Prototype
                         ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
                         : $"Growing - size rate {crop.GrowthRatePercent:0}% | water {crop.Plot.WaterAmount:0}/100";
                 else if (npc != null)
-                    target = $"{npc.DisplayName} - E talk / Q throw to sell";
+                    target = npc.IsHostile ? $"{npc.DisplayName} - Hostile! {guardian.Health:0}/{guardian.MaxHealth:0} HP" : $"{npc.DisplayName} - E talk / Q throw to sell";
                 else if (guardian != null) target = $"Guardian - {guardian.Health:0}/{guardian.MaxHealth:0} HP";
-                else if (exit != null) target = exit.CanTravel ? "E: next stage" : "Defeat the guardian first";
+                else if (exit != null) target = exit.CanTravel ? "E: next stage" : "Defeat the hostile merchant first";
                 else if (hit.collider.TryGetComponent(out SoilSurface soil))
                 {
                     FarmPlot plot = soil.FindPlot(hit.point);

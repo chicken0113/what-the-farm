@@ -118,6 +118,7 @@ public static class UnityMigrationPlayCheck
                         foreach(var material in renderer.sharedMaterials)
                             Check(material != null && material.shader != null && material.shader.name.StartsWith("Universal Render Pipeline/"),"Non-URP scene material: "+renderer.name);
                     Check(stage!=null && !stage.Spawned && !exit.CanTravel,"First-stage setup/locked exit");
+                    Check(stage.Monster!=null && !stage.Monster.IsHostile && stage.Monster.GetComponent<NpcMerchant>()!=null,"Merchant must start peaceful");
                     var soil=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     Check(Mathf.Abs(soil.GetComponent<Collider>().bounds.size.x-100)<.1f,"100m ground missing");
                     Check(!UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Any(t=>t.name.StartsWith("Fence_Block")),"Old fences remain");
@@ -167,25 +168,29 @@ public static class UnityMigrationPlayCheck
                 case 3:
                     Check(world.Gold>gold,"NPC trigger sale failed"); gold=world.Gold;
                     Move(new Vector3(13,.1f,0)); Check(!stage.CheckBoundary(player),"Boundary equality spawned monster");
-                    Move(new Vector3(14,.1f,0)); Check(stage.CheckBoundary(player),"Boundary did not spawn monster");
+                    var existingMerchant=stage.Monster;
+                    Move(new Vector3(14,.1f,0)); Check(stage.CheckBoundary(player),"Boundary did not activate merchant combat");
+                    Check(stage.Monster==existingMerchant && existingMerchant.IsHostile && UnityEngine.Object.FindObjectsByType<FarmGuardian>(FindObjectsSortMode.None).Length==1,"Boundary spawned a separate monster");
+                    var rejected=world.CreateItem(ItemKind.Curio,0,6,Vector3.up*5); rejected.MarkThrown();
+                    Check(!existingMerchant.GetComponent<NpcMerchant>().TrySell(rejected) && world.Gold==gold && !rejected.IsSold,"Hostile merchant accepted sale"); UnityEngine.Object.Destroy(rejected.gameObject);
                     Check(!stage.CheckBoundary(player),"Duplicate monster spawn"); enemyStart=stage.Monster.transform.position;
                     break;
                 case 4:
                     Check(Vector3.Distance(enemyStart,stage.Monster.transform.position)>.1f,"Monster did not chase: start="+enemyStart+" now="+stage.Monster.transform.position+" time="+Time.time);
-                    Move(stage.Monster.transform.position+Vector3.back*1.5f); health=player.Health;
+                    Move(stage.Monster.transform.position+Vector3.right*1.5f); health=player.Health;
                     break;
                 case 5:
                     Check(player.Health<health,"Monster did not damage player");
                     player.ReceiveDamage(999); Check(player.Health==player.MaxHealth && Vector3.Distance(player.transform.position,world.SpawnPosition)<.01f,"Knockout failed");
                     Check(player.CaptureInventory()[2]==grownItem,"Knockout lost inventory");
-                    Move(stage.Monster.transform.position+Vector3.back*2.3f); player.SelectSlot(0);
+                    Move(stage.Monster.transform.position+Vector3.right*2.3f); player.SelectSlot(0);
                     Aim(stage.Monster.transform.position+Vector3.up*.9f); health=stage.Monster.Health; player.Swing();
                     Check(stage.Monster.Health<health,"Swing did not hit guardian"); hits=1;
                     break;
                 case 6:
                     if(stage.Monster!=null)
                     {
-                        Move(stage.Monster.transform.position+Vector3.back*2.3f); Aim(stage.Monster.transform.position+Vector3.up*.9f); player.Swing();
+                        Move(stage.Monster.transform.position+Vector3.right*2.3f); Aim(stage.Monster.transform.position+Vector3.up*.9f); player.Swing();
                         Check(++hits<12,"Guardian cannot be defeated by swings"); return;
                     }
                     Check(stage.Cleared && exit.CanTravel && !stage.CheckBoundary(player),"Clear/exit unlock failed");
@@ -205,7 +210,21 @@ public static class UnityMigrationPlayCheck
                     Check(!nextWorld.Player.EmptyHand.IsVisible,"Travel holding item showed empty hand");
                     nextWorld.Player.SelectSlot(11); Check(nextWorld.Player.EmptyHand.IsVisible,"Empty hand missing after travel");
                     Check(UnityEngine.Object.FindFirstObjectByType<FarmFirstStage>()==null && UnityEngine.Object.FindFirstObjectByType<FarmGuardian>()==null,"First-stage encounter leaked");
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: visible empty hand, bare-hand till, slot/pickup/plant/throw/travel hand visibility, stock pickup/refill, till/aim planting, occupied soil, watering/growth, harvest size, single planting, tool radius, NPC trigger sale, boundary/chase/damage/swing/knockout/clear, travel inventory/gold/history.");
+                    SceneManager.LoadScene("FirstFarm");
+                    break;
+                case 8:
+                    world=UnityEngine.Object.FindFirstObjectByType<FarmPrototype>(); player=world.Player; stage=world.GetComponent<FarmFirstStage>();
+                    Check(!stage.Spawned && !stage.Monster.IsHostile,"New round merchant not peaceful");
+                    Move(stage.Monster.transform.position+Vector3.right*2+Vector3.up*.1f);
+                    Aim(stage.Monster.transform.position+Vector3.up*.95f); player.Swing();
+                    Check(stage.Spawned && stage.Monster.IsHostile && Mathf.Abs(stage.Monster.Health-11)<.001f,"Hitting peaceful merchant did not trigger combat/damage");
+                    health=player.Health;
+                    break;
+                case 9:
+                    Check(player.Health<health,"Hit-triggered merchant did not attack");
+                    stage.Monster.TakeHit(1000);
+                    Check(stage.Cleared && UnityEngine.Object.FindFirstObjectByType<FarmStageExit>().CanTravel,"Hit-triggered encounter did not unlock exit");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: peaceful merchant trade, boundary/hit aggro on the same NPC, hostile sale rejection, visible empty hand, bare-hand till, slot/pickup/plant/throw/travel hand visibility, stock pickup/refill, till/aim planting, occupied soil, watering/growth, harvest size, single planting, tool radius, NPC trigger sale, boundary/chase/damage/swing/knockout/clear, travel inventory/gold/history.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

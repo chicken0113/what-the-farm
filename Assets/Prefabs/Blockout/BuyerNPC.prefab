@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 8524852225907909059}
   - component: {fileID: 1325382111215722176}
   - component: {fileID: 1026298791731176237}
+  - component: {fileID: 5928308659801398985}
+  - component: {fileID: 921545176856591889}
   m_Layer: 0
   m_Name: BuyerNPC
   m_TagString: Untagged
@@ -98,6 +100,49 @@ MonoBehaviour:
   saleMultiplier: 1
   dialogueSeconds: 6
   world: {fileID: 0}
+--- !u!143 &5928308659801398985
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5388835123969493975}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 3
+  m_Height: 1.9
+  m_Radius: 0.34
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0.95, z: 0}
+--- !u!114 &921545176856591889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5388835123969493975}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 369cb2bcf6854c90a70d16c52146114a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.FarmGuardian
+  maxHealth: 12
+  moveSpeed: 2.5
+  attackRange: 1.9
+  attackInterval: 1.2
+  attackDamage: 20
+  hostileTint: {r: 1, g: 0.35, b: 0.3, a: 1}
 --- !u!1001 &8856303849800714391
 PrefabInstance:
   m_ObjectHideFlags: 0
