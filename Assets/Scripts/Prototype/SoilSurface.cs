@@ -10,6 +10,8 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Light sunlight;
         [SerializeField, Min(.01f)] private float fullSunIntensity = 1.5f;
         [SerializeField, Range(0, 100)] private float shadeLightAmount = 20;
+        [SerializeField, Range(0, .45f), Tooltip("Visual edge irregularity. Planting and tool radius stay unchanged; zero gives a circle.")]
+        private float tillEdgeVariation = .3f;
         public SoilType Type => soilType;
         public float InitialWaterAmount => Mathf.Clamp(initialWaterAmount, 0, 100);
         public void SetEnvironment(SoilType type, float light, float water = 0, Light sun = null)
@@ -75,20 +77,35 @@ namespace WhatTheFarm.Prototype
             var vertices = new System.Collections.Generic.List<Vector3>();
             var triangles = new System.Collections.Generic.List<int>();
             const int segments = 48;
-            float height = .012f + areas.Count * .0001f;
-            // A thin fan follows this collider and clips at the ground's edges.
+            const int edgeControls = 12;
+            var edgeRadii = new float[edgeControls];
+            float largest = 0;
+            for (int i = 0; i < edgeControls; i++)
+            {
+                edgeRadii[i] = Random.Range(1 - Mathf.Clamp(tillEdgeVariation, 0, .45f), 1f);
+                largest = Mathf.Max(largest, edgeRadii[i]);
+            }
+            float rotation = Random.Range(0, Mathf.PI * 2);
+            var edge = new Vector3[segments];
             for (int i = 0; i < segments; i++)
             {
-                float a = i * Mathf.PI * 2 / segments;
-                float b = (i + 1) * Mathf.PI * 2 / segments;
-                Vector3 first = point + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * radius;
-                Vector3 second = point + new Vector3(Mathf.Cos(b), 0, Mathf.Sin(b)) * radius;
-                first = ClipToGround(ground, point, first);
-                second = ClipToGround(ground, point, second);
+                float control = (float)i * edgeControls / segments;
+                int index = Mathf.FloorToInt(control);
+                float blend = Mathf.SmoothStep(0, 1, control - index);
+                float outlineRadius = radius * Mathf.Lerp(edgeRadii[index], edgeRadii[(index + 1) % edgeControls], blend) / largest;
+                float angle = rotation + i * Mathf.PI * 2 / segments;
+                edge[i] = ClipToGround(ground, point,
+                    point + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * outlineRadius);
+            }
+            float height = .012f + areas.Count * .0001f;
+            // Only the visible outline varies; the stored gameplay radius stays the same.
+            // Reuse the closed perimeter so neighbouring triangles share exactly the same edge.
+            for (int i = 0; i < segments; i++)
+            {
                 int start = vertices.Count;
                 vertices.Add(Vector3.up * height);
-                vertices.Add(second - point + Vector3.up * height);
-                vertices.Add(first - point + Vector3.up * height);
+                vertices.Add(edge[(i + 1) % segments] - point + Vector3.up * height);
+                vertices.Add(edge[i] - point + Vector3.up * height);
                 triangles.Add(start); triangles.Add(start + 1); triangles.Add(start + 2);
             }
             var root = new GameObject("Tilled ground area");
