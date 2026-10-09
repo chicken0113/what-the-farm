@@ -201,6 +201,9 @@ public static class UnityMigrationPlayCheck
                     break;
                 case 4:
                     Check(Vector3.Distance(enemyStart,stage.Monster.transform.position)>.1f,"Monster did not chase: start="+enemyStart+" now="+stage.Monster.transform.position+" time="+Time.time);
+                    var modelForward=stage.Monster.transform.Find("Visual").forward;
+                    var chaseDirection=player.transform.position-stage.Monster.transform.position; chaseDirection.y=0;
+                    Check(Vector3.Dot(modelForward,chaseDirection.normalized)>.99f,"Merchant visual faces backwards while chasing");
                     Move(stage.Monster.transform.position+Vector3.right*1.5f); health=player.Health;
                     break;
                 case 5:

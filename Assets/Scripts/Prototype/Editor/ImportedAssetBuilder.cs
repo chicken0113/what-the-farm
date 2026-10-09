@@ -58,7 +58,6 @@ public static class ImportedAssetBuilder
         model.name = "Visual";
         model.transform.SetParent(root.transform, false);
         if (source.EndsWith("Shovel_A.prefab")) model.transform.localRotation = Quaternion.Euler(-90, 0, 0);
-        if (source.Contains("Floreswa/")) model.transform.localRotation = Quaternion.Euler(0, 180, 0);
         foreach (var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>()) skin.updateWhenOffscreen = true;
         Bounds bounds = BoundsOf(model);
         model.transform.localScale *= height / Mathf.Max(.001f, bounds.size.y);
