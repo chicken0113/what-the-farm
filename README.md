@@ -1,67 +1,6 @@
 # What The Farm
 
-현재 개발 대상은 **Unreal Engine 5.7** 프로젝트 `whatthefarm.uproject`입니다. 기존 Unity 시제품은 같은 저장소의 `Assets`, `Packages`, `ProjectSettings`에 보관합니다.
-
-## 언리얼 프로젝트 열기
-
-1. `whatthefarm.uproject`를 Unreal Engine **5.7.4**로 엽니다.
-2. C++ 모듈을 다시 빌드할지 묻는 창이 나오면 빌드합니다. Visual Studio의 C++ 게임 개발 도구와 Windows SDK가 필요합니다.
-3. 기본 맵 `Content/Farm/Maps/FirstFarm`에서 Play를 누릅니다. 기존 First Person 템플릿도 그대로 보관합니다.
-
-Unity 시제품의 농사, 인벤토리, 성장, 수확, 재고 보충, NPC 판매를 C++와 편집 가능한 Blueprint/Data Asset으로 이식했습니다. 현재는 **로컬 1인 시제품**입니다. 멀티플레이, 유료 상점, 디스크 저장/불러오기는 아직 구현하지 않았습니다. 첫 스테이지 클리어 후 임시 다음 맵으로 이동할 수 있습니다.
-
-## 언리얼 시제품 조작과 설정
-
-| 키 | 동작 |
-| --- | --- |
-| WASD / 마우스 / Shift / Space | 이동 / 시점 / 달리기 / 점프 |
-| E | 아이템 줍기 / 선택 아이템 심기 / NPC 대화 |
-| 마우스 왼쪽 | 괭이로 갈기 / 물 주기 / 다 자란 대상 공격 |
-| Q | 선택 아이템 던지기. 판매 NPC에게 던지면 골드 지급 |
-| 1~9 / 휠 | 핫바 선택 |
-| Tab | 인벤토리 열기/닫기. 두 칸을 차례로 클릭해 이동/교환 |
-
-시작 위치 앞에 괭이, 물뿌리개, 씨앗, 돌이 있습니다. 가져가면 공급품이 즉시 보충됩니다. 괭이로 **길 옆 지면**을 갈고 씨앗을 선택한 뒤 갈린 부분을 보고 E로 심으세요. 갈린 영역 하나에 하나만 심으며 조준한 위치에 놓입니다. 물을 주면 성장하고 다 자란 대상은 도망갑니다. 때려 수확한 뒤에도 모델과 커진 크기는 유지됩니다. 각 아이템은 한 번만 심을 수 있습니다. 수확한 대상은 재식재할 수 없고 사용하거나 판매합니다. 빈 밭에는 새로운 아이템을 심을 수 있습니다. 성장으로 겹친 식물은 삭제하지 않습니다.
-
-- **칸 수/도구 범위:** `Content/Farm/Blueprints/BP_Farmer`의 Class Defaults에서 `Inventory Slots`, `Hoe Radius`, `Water Radius`, `Water Per Use`를 설정합니다. 거리 단위는 cm입니다. 처음 9칸까지 핫바로 사용합니다. 커진 도구의 범위는 원래 크기 대비 배율에 정비례합니다.
-- **개별 성장 조건:** `Content/Farm/Growth`의 Data Asset에서 기본 성장률, 빛/물 범위, 선호 땅, 각 보너스, 성장 시간과 크기 배율을 설정합니다. 환경 보너스는 **최종 크기**에 적용됩니다. `100 + 빛 보너스 + 물 보너스 + 땅 보너스`가 150이면 기준 완성 크기의 1.5배입니다.
-- **새 아이템:** `FarmItem` 기반 Blueprint를 만들고 Mesh의 Static Mesh, Kind, Base Value, Growth Profile을 지정합니다. 모델과 크기를 유지한 채 심기·성장·수확·판매 시스템을 사용합니다. `Restock On Pickup`을 켜면 공급품으로 사용합니다.
-- **환경:** 맵의 `FarmSoil`에서 `Soil Type`, `Light Amount`, `Initial Water`, `Use Sunlight`, `Shade Light`를 설정합니다. Soil Type은 임의 이름이며 성장 설정의 Preferred Soils와 일치시키면 됩니다. Sunlight를 사용하면 Directional Light 방향으로 장애물 그늘을 확인합니다. 수동 수치는 Sunlight를 끄고 사용합니다.
-- **NPC:** 맵의 Buyer NPC에서 `Dialogue`, `Merchant Name`, `Price Multiplier`와 Receiver 반경을 변경합니다. 던진 느슨한 아이템만 판매합니다. 자식 액터 `Buyer Visual - Unreal Farmer`는 새 농부 팩의 Skeletal Mesh와 반복 대기 애니메이션을 사용합니다.
-- 괭이는 `3D_LOW_POLY_FarmerPack/Props/SM_Hoe`로 교체했으며 기본 높이 27cm를 유지합니다. `BP_Hoe` 기본 모델과 맵의 공급품 모두 같은 모델을 사용합니다. 판매 NPC도 이 팩의 농부 캐릭터로 교체했습니다. 대응 모델이 없는 나무·바위는 기존 에셋을 사용합니다. 물가·상점 건물·출구는 배치 표시입니다. Play를 끈 상태에서 맵 배치를 편집해 저장하세요.
-- `Scripts/replace_legacy_models.py`는 기존 맵에서 대응 모델을 교체하는 일회성 스크립트입니다. `Scripts/verify_replaced_models.py`는 괭이 크기와 NPC 애니메이션을 PIE에서 확인합니다.
-- **플레이어 동작:** 농부 팩의 `anim_Farmer_attack_A`를 심기·사용·공격에, `anim_Farmer_grab_medium`을 줍기에 사용합니다. 1인칭 모델의 오른손 뼈에 아이템을 연결해 함께 움직이며, 동작 후 `anim_Farmer_idle_combat`으로 돌아옵니다. `BP_Farmer` Class Defaults의 Animation 항목에서 클립과 `Action Duration`(기본 0.42초)을 변경할 수 있습니다. `First Person Arms` 컴포넌트에서 모델의 카메라 기준 위치·회전을 조절합니다. 게임 판정은 기존처럼 버튼을 누를 때 즉시 적용됩니다.
-
-아이템 기본 길이는 초기 시제품의 30%로 줄였습니다. 바닥의 아이템은 플레이어와 다른 아이템을 밀지 않으며, 바닥 물리와 E로 줍는 조준 판정은 유지합니다. 공급품은 처음 배치한 위치·회전·크기로 재입고됩니다.
-
-## 첫 스테이지 진행
-
-- 첫 맵은 **100m × 100m**입니다. 기존 펜스는 제거했습니다. 밝은 흙으로 표시한 원래 농장 범위는 **26m × 26m**입니다.
-- 원래 농장 경계(X/Y ±13m)를 처음 넘어가면 붉은 임시 모델의 **Farm Guardian 한 마리**가 등장합니다. 플레이어를 추적하며 가까이에서 공격합니다. 다시 경계를 넘어도 추가로 나오지 않습니다.
-- 왼쪽 클릭으로 공격합니다. 괭이는 기본 피해 2, 맨손/다른 아이템은 1이며, 커진 괭이는 크기 배율만큼 피해도 증가합니다. 기본 몬스터 체력은 12입니다.
-- 플레이어 체력은 100입니다. 체력이 소진되면 아이템을 유지한 채 농장 시작 위치로 돌아옵니다.
-- 몬스터를 잡으면 북쪽 보라색 출구가 열립니다. 가까이서 **E**를 누르면 `Content/Farm/Maps/StageTwo`로 이동합니다. 인벤토리, 골드, 아이템 크기와 재식재 제한은 이어집니다.
-- **StageTwo는 이동 확인용 빈 맵**입니다. 다음 스테이지의 콘텐츠와 진행 규칙은 아직 만들지 않았습니다. 이 맵에는 첫 스테이지 경계/몬스터 규칙이 없습니다.
-- 맵의 **First Stage - Old Fence Boundary**에서 경계 크기와 몬스터 종류/등장 거리를 조절합니다. `BP_Guardian` Class Defaults에서 체력, 이동 속도, 공격 거리·피해·간격을 조절합니다. 거리 단위는 cm입니다.
-- **First Stage Exit - Defeat Guardian**의 Next Level은 이동할 맵 이름입니다. 이후 스테이지에는 FarmFirstStage를 배치하지 않고, 필요하면 출구의 Require First Stage Clear를 끄면 됩니다.
-- `Scripts/verify_first_stage.py`는 실제 PIE에서 추적/공격/처치/이동과 다음 맵에서 몬스터 미등장을 확인합니다. `WhatTheFarm.Stage` 자동 검사는 경계 조건, 전투, 이동 시 아이템 보존을 확인합니다.
-
-## 언리얼 빌드와 검증
-
-Editor 타깃: `whatthefarmEditor Win64 Development`. 에디터를 닫고 `Build.bat`에 프로젝트 절대 경로와 `-WaitMutex -NoHotReloadFromIDE -NoUBA -MaxParallelActions=1`을 전달하면 메모리 사용을 제한해 빌드할 수 있습니다.
-
-Unreal Automation의 `WhatTheFarm.Farming`에는 성장/수확/재식재 거부/인벤토리/재고/판매와 크기별 도구 범위 검사가 있습니다. `Scripts/verify_farm.py`는 실제 첫 맵에서 PIE 조작과 물리 던지기 판매를 확인합니다. `UnrealEditor.exe <프로젝트> -ExecutePythonScript=<스크립트 절대 경로> -unattended -d3d11 -nosound`로 실행합니다.
-
-생성된 맵과 에셋은 Git에 포함되어 있어 생성 스크립트 실행이 필요하지 않습니다. 초기 생성이 필요할 때만 `Scripts/setup_farm.py`를 같은 방식으로 실행하세요. 선택 사항인 `WTF_LEGACY_ASSETS` 환경변수에 기존 Unity Assets 경로를 지정하면 모델을 가져옵니다. 기존 맵과 설정은 재생성으로 덮어쓰지 않습니다.
-
-- 작업 폴더: `C:\Users\MSI\Documents\Unreal Projects\whatthefarm`
-- 원격 저장소: https://github.com/chicken0113/what-the-farm
-- `Config`, `Content`, `Source`, `.uproject`는 Git에 저장합니다. `Binaries`, `Intermediate`, `Saved`, 캐시와 Visual Studio 생성 파일은 저장하지 않습니다.
-- 이 작업 폴더는 Git의 선택적 체크아웃으로 Unity 폴더를 생략합니다. 원격 저장소와 Git 이력에는 Unity 파일이 그대로 남습니다. 일반적으로 저장소를 새로 복제하면 양쪽 프로젝트가 모두 포함됩니다.
-
-## 기존 Unity 시제품
-
-아래 내용은 이전 Unity 프로토타입의 사용 안내입니다.
+현재 개발 대상은 다시 **Unity 6 (6000.3.25f1)** 프로젝트입니다. 작업 폴더는 `C:\Users\MSI\what-the-farm`입니다. Unity 6 기반 3D 게임 프로젝트입니다. 기본 3D 템플릿과 Universal Render Pipeline(URP)을 사용합니다.
 
 ## 시작하기
 
@@ -164,3 +103,9 @@ Unreal Automation의 `WhatTheFarm.Farming`에는 성장/수확/재식재 거부/
 - 큰 바이너리 에셋이 많아지면 Git LFS 도입을 검토합니다.
 
 원격 저장소: [what-the-farm](https://github.com/chicken0113/what-the-farm)
+## 유니티 복귀 상태
+
+- 기존 유니티의 농사, 인벤토리, 환경에 따른 최종 크기, 수확 크기 유지, 도구 범위 배율, 공급품 재입고, NPC 판매를 기준으로 다시 개발합니다.
+- 언리얼에서 추가한 작은 아이템 기본 크기, 느슨한 아이템의 플레이어 충돌 제거, 개별 아이템 1회 식재 제한, 넓어진 첫 맵과 경계 몬스터/다음 스테이지 이동은 아직 유니티에 이식하지 않았습니다.
+- 언리얼에서 연결한 농부/괭이 모델과 줍기/휘두르기 애니메이션도 아직 유니티에 이식하지 않았습니다. `.uasset`은 유니티에서 직접 사용할 수 없으므로 FBX 등으로 내보낸 뒤 다시 연결해야 합니다.
+- 저장소의 `whatthefarm.uproject`, `Source`, `Content`, `Config`, `Scripts`는 이전 언리얼 작업을 보관한 자료입니다. 유니티 개발은 `Assets`, `Packages`, `ProjectSettings`에서 진행합니다.

@@ -2,22 +2,17 @@
 
 ## Active project
 
-- Work in the user-created Unreal project at the repository root: `whatthefarm.uproject`.
-- Engine version: Unreal Engine 5.7.4. Module name: `whatthefarm`.
-- Keep the existing First Person template and user-created assets unless a requested feature requires changing them.
-- Unity `Assets`, `Packages`, and `ProjectSettings` are a retained prototype. They are intentionally excluded from this checkout using sparse checkout. Do not remove them from Git or implement new features there.
+- The user switched back to Unity. Work in `C:/Users/MSI/what-the-farm`.
+- Use Unity 6000.3.25f1 with URP. Open `Assets/Scenes/FirstFarm.unity`.
+- Gameplay lives in `Assets/Scripts/Prototype`. Configure content with Unity prefabs and ScriptableObjects.
+- The Unreal project (`whatthefarm.uproject`, `Source`, `Content`, `Config`, `Scripts`) is retained reference work. Do not implement new gameplay there unless the user asks.
+- Preserve user edits to scenes, materials and render pipeline settings. Do not regenerate edited maps with the initial builders.
+- Keep `.meta` files with Unity assets. Do not track Library, Temp, Logs, UserSettings or generated IDE files.
 
-## Development
+## Gameplay and migration
 
-- First-stage boundary encounter is opt-in via FarmFirstStage placed in FirstFarm only. Do not add it to later stages. StageTwo is a travel placeholder; preserve carried inventory/gold and one-plant history during travel.
-
-- Implement gameplay in C++ with properties and functions exposed to the editor / Blueprints where the user needs control.
-- Preserve the game's existing design: any obtainable item can be planted; one plant per tilled area; plant at the aim point; environment affects final size; harvest retains grown size; tool range scales linearly with grown size.
-- Each individual item can be planted only once. Harvested objects retain their planting history across pickup and throw and cannot be replanted. Fresh supplies may still use a freed plot.
-- The farm prototype lives in `Source/whatthefarm/Farming` and `Content/Farm/Maps/FirstFarm`. It is local single-player; multiplayer, paid shop and disk persistence are not implemented. FirstFarm has a one-off boundary encounter that unlocks travel to the placeholder StageTwo.
-- Designer settings live in `Content/Farm/Blueprints` and `Content/Farm/Growth`. Preserve edited maps/assets; the setup script is for initial generation.
-- Keep generated `Binaries`, `Intermediate`, `Saved`, and `DerivedDataCache` out of Git. Track `Config`, `Content`, `Source` and the project descriptor.
-- Build with UnrealBuildTool for `whatthefarmEditor Win64 Development` when changing C++.
-- Use `-NoUBA -MaxParallelActions=1` on this machine to avoid low-memory build failures. Close the editor before replacing its module DLL.
-- Native automation tests are `WhatTheFarm.Farming`. `Scripts/verify_farm.py` checks PIE actions. Editor asset placement and screenshots require a rendering editor (`-d3d11`), not NullRHI.
-- Do not directly edit binary `.uasset` / `.umap` files as text. Use the Unreal editor or supported editor automation.
+- Preserve aim-point planting, one plant per tilled area, watering to begin growth, environment bonuses to final size, grown harvest size, tool range scaling, inventory, restocking and NPC sale.
+- Intended design from Unreal work: each item may be planted only once; small loose items do not block the player; FirstFarm alone has a boundary monster that unlocks stage travel. These are not yet present in the restored Unity baseline; see README migration status.
+- Existing Unreal animations and replacement models require a supported export/import workflow before Unity can use them. Do not imply that `.uasset` files work directly in Unity.
+- Current gameplay is a local single-player prototype. Multiplayer, paid shops and disk saves are not implemented.
+- Use the installed Unity editor to compile and validate changes. Existing editor validation entry point: `ToolSizeValidation.Validate` (matches the restored baseline, including repeat planting).
