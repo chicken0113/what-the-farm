@@ -10,6 +10,13 @@ namespace WhatTheFarm.Prototype
         public bool Cleared { get; private set; }
         public FarmGuardian Monster { get; private set; }
         private FarmPrototype world;
+        public Vector2 PeacefulHalfSize => originalHalfSize;
+        public bool IsInsidePeacefulArea(Vector3 point, float margin = 0)
+        {
+            Vector3 offset = point - transform.position;
+            return Mathf.Abs(offset.x) <= Mathf.Max(0, originalHalfSize.x - margin) &&
+                Mathf.Abs(offset.z) <= Mathf.Max(0, originalHalfSize.y - margin);
+        }
         // Retained for old map builders; the scene merchant now owns the encounter.
         public void Configure(FarmGuardian prefab) { }
         private void Awake() => world = GetComponent<FarmPrototype>();
@@ -24,8 +31,7 @@ namespace WhatTheFarm.Prototype
         public bool CheckBoundary(LocalFarmer player)
         {
             if (Spawned || Cleared || player == null || player.IsDead) return false;
-            Vector3 offset = player.transform.position-transform.position;
-            if (Mathf.Abs(offset.x) <= originalHalfSize.x && Mathf.Abs(offset.z) <= originalHalfSize.y) return false;
+            if (IsInsidePeacefulArea(player.transform.position)) return false;
             ResolveMerchant();
             return Monster != null && Monster.BecomeHostile();
         }

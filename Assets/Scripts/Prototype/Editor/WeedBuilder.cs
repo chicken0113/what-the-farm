@@ -55,6 +55,7 @@ public static class WeedBuilder
         {
             ground.transform.position = new Vector3(200, -.5f, 200); ground.transform.localScale = new Vector3(10, 1, 10);
             var soil = ground.AddComponent<SoilSurface>(); var world = root.AddComponent<FarmPrototype>();
+            root.transform.position = new Vector3(200, 0, 200);
             config.initialCount = 0; config.intervalSeconds = 2; config.countPerInterval = 1; config.maxWildWeeds = 2;
             var spawner = root.AddComponent<WeedSpawner>(); spawner.Configure(world, config);
             Physics.SyncTransforms();
@@ -87,6 +88,19 @@ public static class WeedBuilder
             var npc = root.AddComponent<NpcMerchant>(); npc.BindWorld(world);
             item.MarkThrown(); long before = world.Gold; int value = item.Value;
             Check(npc.TrySell(item) && world.Gold == before + value && !npc.TrySell(item), "Weed sale payout/duplicate protection failed");
+            foreach (var remaining in root.GetComponentsInChildren<FarmItem>()) UnityEngine.Object.DestroyImmediate(remaining.gameObject);
+            var boundary = root.AddComponent<FarmFirstStage>();
+            ground.transform.localScale = new Vector3(100, 1, 100); Physics.SyncTransforms();
+            config.maxWildWeeds = 30; spawner.Configure(world, config);
+            var outside = root.transform.position + Vector3.right * 14;
+            Check(!boundary.IsInsidePeacefulArea(outside) && !spawner.CanSpawnAt(outside, ground.GetComponent<Collider>()), "Weed allowed outside peaceful area");
+            Check(!spawner.CanSpawnAt(root.transform.position + Vector3.right * 12.8f, ground.GetComponent<Collider>()), "Weed ignored boundary inset");
+            for (int i = 0; i < 20; i++) Check(spawner.TrySpawn(), "Safe-area sampling failed on expanded map");
+            foreach (var weed in root.GetComponentsInChildren<FarmItem>())
+                Check(boundary.IsInsidePeacefulArea(weed.transform.position, .5f), "Spawned weed outside peaceful area");
+            UnityEngine.Object.DestroyImmediate(boundary);
+            Check(spawner.CanSpawnAt(outside, ground.GetComponent<Collider>()), "Later stages inherited first-stage boundary restriction");
+            Debug.Log("WEED_SAFE_AREA_VALIDATION_SUCCESS: shifted stage origin, twenty spawns inside shared NPC boundary, inset and unrestricted later stage.");
             Debug.Log("WEED_VALIDATION_SUCCESS: timed random spawn, cap, tilled soil, pickup, unchanged planting, soil release and sale.");
         }
         finally

@@ -7,6 +7,8 @@ namespace WhatTheFarm.Prototype
     {
         [SerializeField] private WeedSpawnSettings settings;
         private FarmPrototype world;
+        private FarmFirstStage boundary;
+        private const float BoundaryInset = .5f;
         private readonly List<FarmItem> wild = new();
         private readonly List<Collider> grounds = new();
         private float clock;
@@ -14,6 +16,7 @@ namespace WhatTheFarm.Prototype
         public void Configure(FarmPrototype farm, WeedSpawnSettings config)
         {
             world = farm; settings = config; clock = 0;
+            boundary = farm.GetComponent<FarmFirstStage>();
             grounds.Clear();
             foreach (var soil in FindObjectsByType<SoilSurface>(FindObjectsSortMode.None))
                 if (soil.gameObject.scene == farm.gameObject.scene && soil.TryGetComponent<Collider>(out var collider) && collider.enabled)
@@ -36,7 +39,7 @@ namespace WhatTheFarm.Prototype
             if (settings == null || !settings.enabled || settings.prefab == null || world == null || WildCount >= settings.maxWildWeeds) return false;
             float totalArea = 0;
             foreach (var ground in grounds)
-                if (ground != null && ground.enabled && ground.gameObject.activeInHierarchy) totalArea += ground.bounds.size.x * ground.bounds.size.z;
+                if (SpawnBounds(ground, out var area)) totalArea += area.size.x * area.size.z;
             if (totalArea <= 0) return false;
             for (int attempt = 0; attempt < settings.placementAttempts; attempt++)
             {
@@ -44,11 +47,11 @@ namespace WhatTheFarm.Prototype
                 Collider chosen = null;
                 foreach (var ground in grounds)
                 {
-                    if (ground == null || !ground.enabled || !ground.gameObject.activeInHierarchy) continue;
-                    chosen = ground; choice -= ground.bounds.size.x * ground.bounds.size.z;
+                    if (!SpawnBounds(ground, out var area)) continue;
+                    chosen = ground; choice -= area.size.x * area.size.z;
                     if (choice <= 0) break;
                 }
-                var bounds = chosen.bounds;
+                if (!SpawnBounds(chosen, out var bounds)) continue;
                 Vector3 top = new(Random.Range(bounds.min.x, bounds.max.x), bounds.max.y + 10, Random.Range(bounds.min.z, bounds.max.z));
                 if (!Physics.Raycast(top, Vector3.down, out var hit, bounds.size.y + 20, ~((1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore)) continue;
                 var hitGround = hit.collider.GetComponent<FarmPlot>()?.Surface?.GetComponent<Collider>() ?? hit.collider;
@@ -65,6 +68,7 @@ namespace WhatTheFarm.Prototype
         }
         public bool CanSpawnAt(Vector3 point, Collider ground)
         {
+            if (boundary != null && !boundary.IsInsidePeacefulArea(point, BoundaryInset)) return false;
             float spacing = Mathf.Max(.1f, settings.minimumSpacing);
             foreach (var item in wild)
                 if (item != null && Vector3.Distance(point, item.transform.position) < spacing) return false;
@@ -75,6 +79,20 @@ namespace WhatTheFarm.Prototype
                 if (collider.GetComponent<SoilSurface>() != null || collider.GetComponent<FarmPlot>() != null) continue;
                 return false;
             }
+            return true;
+        }
+        private bool SpawnBounds(Collider ground, out Bounds result)
+        {
+            result = default;
+            if (ground == null || !ground.enabled || !ground.gameObject.activeInHierarchy) return false;
+            result = ground.bounds;
+            if (boundary == null) return result.size.x > 0 && result.size.z > 0;
+            Vector3 min = result.min, max = result.max, center = boundary.transform.position;
+            Vector2 half = Vector2.Max(Vector2.zero, boundary.PeacefulHalfSize - Vector2.one * BoundaryInset);
+            min.x = Mathf.Max(min.x, center.x - half.x); max.x = Mathf.Min(max.x, center.x + half.x);
+            min.z = Mathf.Max(min.z, center.z - half.y); max.z = Mathf.Min(max.z, center.z + half.y);
+            if (max.x <= min.x || max.z <= min.z) return false;
+            result.SetMinMax(min, max);
             return true;
         }
     }
