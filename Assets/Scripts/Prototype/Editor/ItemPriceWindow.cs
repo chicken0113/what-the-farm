@@ -55,8 +55,8 @@ public sealed class ItemPriceWindow : EditorWindow
     private void OnGUI()
     {
         if (catalog == null) { catalog = EnsureCatalog(); return; }
-        EditorGUILayout.LabelField("아이템 구매 / 판매 가격 및 성장 속도", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("성장 속도: 100% = 기본, 200% = 성장 시간 절반, 50% = 두 배, 0% = 일시 정지.\n성장 중인 식물에도 반영됩니다. 환경에 따른 최종 크기는 그대로입니다. 삽의 성장 속도는 삽 머리 행에서 조절합니다.", MessageType.None);
+        EditorGUILayout.LabelField("아이템 구매 / 판매 가격 및 성장 시간", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("성장 시간: 물주기 등 성장 시작 조건을 만족한 뒤 다 자라기까지 걸리는 초입니다.\n5를 입력하면 5초, 10을 입력하면 10초입니다(최소 0.1초). 세대와 관계없이 입력한 시간을 사용합니다.\n성장 중 수정하면 현재 진행률을 유지하며 남은 진행에 적용됩니다. 삽은 삽 머리 행에서 조절합니다.", MessageType.None);
         EditorGUILayout.HelpBox("구매 가격은 향후 상점용 데이터입니다. 현재 바닥 아이템 줍기는 무료입니다.\n판매 가격은 NPC 환전에 즉시 적용됩니다. 시체도 판매할 수 있습니다.\n판매액 = 기본 판매가 × 세대 배율^세대 × 상인 배율. 0골드도 판매됩니다.", MessageType.Info);
         search = EditorGUILayout.TextField("검색", search);
         if (GUILayout.Button("아이템 목록 새로 확인 (가격 유지)")) catalog = EnsureCatalog();
@@ -66,7 +66,7 @@ public sealed class ItemPriceWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("아이템 / 가격 ID", GUILayout.MinWidth(180));
         GUILayout.Label("구매가", GUILayout.Width(80)); GUILayout.Label("기본 판매가", GUILayout.Width(80));
-        GUILayout.Label("성장 속도 (%)", GUILayout.Width(110));
+        GUILayout.Label("성장 시간 (초)", GUILayout.Width(110));
         EditorGUILayout.EndHorizontal();
         scroll = EditorGUILayout.BeginScrollView(scroll);
         foreach (var row in catalog.entries.Where(row => row != null &&
@@ -80,7 +80,7 @@ public sealed class ItemPriceWindow : EditorWindow
             bool finished = row.id == "shovel";
             if (row.id == "weed" || body || finished)
                 GUILayout.Label(body ? "체력 회복" : finished ? "성장 완료" : "성장 없음", GUILayout.Width(110));
-            else row.growthSpeedPercent = Mathf.Max(0, EditorGUILayout.FloatField(row.growthSpeedPercent, GUILayout.Width(110)));
+            else row.growthSeconds = Mathf.Max(.1f, EditorGUILayout.FloatField(row.growthSeconds, GUILayout.Width(110)));
             EditorGUILayout.EndHorizontal();
         }
         EditorGUILayout.EndScrollView();

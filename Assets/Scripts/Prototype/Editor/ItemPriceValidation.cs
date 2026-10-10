@@ -71,24 +71,25 @@ public static class ItemPriceValidation
             var soil = ground.AddComponent<SoilSurface>(); Physics.SyncTransforms();
             var plot = soil.Till(new Vector3(400, 0, 400), 1, material, material);
             var world = farmRoot.AddComponent<FarmPrototype>();
-            var source = sourceRoot.AddComponent<FarmItem>(); source.Configure(ItemKind.Seed, 0, 10);
-            profile.growthSeconds = 4; profile.secondsPerGeneration = 0;
+            var source = sourceRoot.AddComponent<FarmItem>(); source.Configure(ItemKind.Seed, 2, 10);
+            profile.growthSeconds = 4; profile.secondsPerGeneration = 1; profile.sizePerGeneration = 0;
             profile.useLightCondition = profile.useWaterCondition = profile.useSoilCondition = false;
             source.SetGrowthProfile(profile);
             var plant = GameObject.CreatePrimitive(PrimitiveType.Cube); plant.transform.SetParent(farmRoot.transform);
             plant.GetComponent<Renderer>().sharedMaterial = new Material(material);
             var crop = plant.AddComponent<FleeingCrop>(); Check(plot.Plant(crop), "Growth plot setup failed");
             crop.Configure(world, source, plot, 0);
-            var row = catalog.Find("seed"); row.growthSpeedPercent = 100;
+            var row = catalog.Find("seed"); row.growthSeconds = 8;
             crop.Grow(100); Check(!crop.IsMature, "Speed control bypassed watering requirement");
             plot.Water(25);
-            crop.Grow(1); Check(!crop.IsMature, "100% speed completed early");
-            row.growthSpeedPercent = 200; crop.Grow(1); Check(!crop.IsMature, "Live 200% change completed early");
-            row.growthSpeedPercent = 0; crop.Grow(100); Check(!crop.IsMature, "Zero speed did not pause growth");
-            row.growthSpeedPercent = 50; crop.Grow(1); Check(!crop.IsMature, "50% speed completed early");
-            crop.Grow(1); Check(crop.IsMature && Mathf.Abs(plant.transform.localScale.x - 2) < .001f,
-                "Growth speed did not affect completion timing or changed final size");
-            Debug.Log("ITEM_GROWTH_SPEED_VALIDATION_SUCCESS: water gate, live 100/200/0/50 percent speed and unchanged final size.");
+            crop.Grow(7); Check(!crop.IsMature && Mathf.Abs(plant.transform.localScale.x - 1.875f) < .001f,
+                "Eight-second duration ignored or generation changed duration");
+            row.growthSeconds = 4; crop.Grow(.4f); Check(!crop.IsMature, "Live duration edit completed early");
+            crop.Grow(.11f); Check(crop.IsMature && Mathf.Abs(plant.transform.localScale.x - 2) < .001f,
+                "Duration edit lost progress or changed final size");
+            Check(ItemPriceCatalog.GrowthSeconds("missing", 7) == 7, "Unknown item lost profile duration fallback");
+            row.growthSeconds = 0; Check(ItemPriceCatalog.GrowthSeconds("seed", 4) == .1f, "Minimum duration not enforced");
+            Debug.Log("ITEM_GROWTH_SECONDS_VALIDATION_SUCCESS: water gate, exact seconds independent of generation, live edit preserving progress and final size.");
         }
         finally
         {

@@ -177,7 +177,8 @@ namespace WhatTheFarm.Prototype
                 ? growthProfile.Evaluate(plot.GetLight(transform.position, transform), plot.WaterAmount, plot.SoilType)
                 : 100;
             if ((growthProfile == null || growthProfile.requireWaterToStart) && !plot.GrowthStarted) return;
-            growthProgress = Mathf.Min(growthTime, growthProgress + elapsed * ItemPriceCatalog.GrowthSpeed(growthPriceId));
+            float seconds = ItemPriceCatalog.GrowthSeconds(growthPriceId, growthTime);
+            growthProgress = Mathf.Min(growthTime, growthProgress + elapsed * growthTime / seconds);
             float baseSize = growthProfile != null
                 ? growthProfile.matureSizeMultiplier + generation * growthProfile.sizePerGeneration
                 : 2f + generation * .32f;
