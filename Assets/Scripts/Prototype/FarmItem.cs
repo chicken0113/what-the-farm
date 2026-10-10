@@ -17,6 +17,12 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private ItemKind kind = ItemKind.Curio;
         [SerializeField, Min(0)] private int generation;
         [SerializeField, Min(0)] private int baseValue = 10;
+        [SerializeField, Tooltip("Optional unique price ID for a new item. Empty uses the built-in kind/state price.")]
+        private string customPriceId;
+        public string CustomPriceId => customPriceId;
+        public void SetPriceId(string id) => customPriceId = id;
+        public string PriceId => string.IsNullOrWhiteSpace(customPriceId) ? ItemPriceCatalog.DefaultId(this) : customPriceId;
+        public int PurchasePrice => ItemPriceCatalog.Purchase(this);
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private Vector3 originalScale;
         [SerializeField] private bool hasBeenPlanted;
@@ -91,7 +97,7 @@ namespace WhatTheFarm.Prototype
         public int BaseValue => baseValue;
         public PlantGrowthProfile GrowthProfile => growthProfile;
         public void SetGrowthProfile(PlantGrowthProfile profile) => growthProfile = profile;
-        public int Value => Mathf.RoundToInt(BaseValue * Mathf.Pow(1.8f, Generation));
+        public int Value => ItemPriceCatalog.Sale(this);
         public bool WasThrown { get; private set; }
         public bool IsSold { get; private set; }
 
@@ -120,7 +126,7 @@ namespace WhatTheFarm.Prototype
 
         public bool ClaimSale()
         {
-            if (kind == ItemKind.Corpse || !WasThrown || IsSold || GetComponent<FleeingCrop>() != null) return false;
+            if (!WasThrown || IsSold || GetComponent<FleeingCrop>() != null) return false;
             Rigidbody body = GetComponent<Rigidbody>();
             if (body == null || body.isKinematic) return false;
             IsSold = true;

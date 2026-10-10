@@ -17,6 +17,7 @@ namespace WhatTheFarm.Prototype
         private Vector3 plantedGroundPosition;
         private FarmPrototype world;
         public string OwnerId => ownerId;
+        public bool IsPlayerBody => player != null;
         public string DisplayName => ownerName + " Body";
         public BodyState State { get; private set; }
         public Quaternion PlantingRotation => npc != null ? npc.HomeRotation : Quaternion.identity;

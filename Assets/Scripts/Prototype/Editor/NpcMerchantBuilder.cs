@@ -87,12 +87,6 @@ public static class NpcMerchantBuilder
             item.MarkHeld();
             if (npc.TrySell(item)) throw new InvalidOperationException("Picking up did not cancel sale eligibility.");
             item.MarkThrown();
-            if (kind == ItemKind.Corpse)
-            {
-                if (npc.TrySell(item) || world.Gold != expected) throw new InvalidOperationException("Corpse was sold.");
-                UnityEngine.Object.DestroyImmediate(item.gameObject);
-                continue;
-            }
             expected += item.Value;
             if (!npc.TrySell(item) || world.Gold != expected || npc.TrySell(item))
                 throw new InvalidOperationException("Sale value or duplicate sale failed.");

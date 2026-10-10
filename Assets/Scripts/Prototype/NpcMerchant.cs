@@ -51,8 +51,8 @@ namespace WhatTheFarm.Prototype
         public bool TrySell(FarmItem item)
         {
             if (item == null || IsHostile || IsDefeated || !FindWorld()) return false;
-            int price = Mathf.Max(0, Mathf.RoundToInt(item.Value * saleMultiplier));
-            if (price == 0 || !item.ClaimSale()) return false;
+            int price = (int)System.Math.Min(int.MaxValue, System.Math.Round(item.Value * (double)Mathf.Max(0, saleMultiplier)));
+            if (!item.ClaimSale()) return false;
             world.AddGold(price);
             world.ShowDialogue(displayName, $"Bought {item.DisplayName} for {price} gold. Thank you!", dialogueSeconds);
             item.gameObject.SetActive(false);

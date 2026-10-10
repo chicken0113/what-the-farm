@@ -9,6 +9,8 @@ namespace WhatTheFarm.Prototype
         private ItemKind sourceKind;
         private int generation;
         private int baseValue;
+        private string customPriceId;
+        private string harvestPriceId;
         private float growthTime;
         private float growthProgress;
         private float health;
@@ -37,7 +39,7 @@ namespace WhatTheFarm.Prototype
         public bool IsWatered => plot != null && plot.IsWatered;
         public FarmPlot Plot => plot;
         public int Generation => generation;
-        public int Value => Mathf.RoundToInt(baseValue * Mathf.Pow(1.8f, generation));
+        public int Value => ItemPriceCatalog.Sale(harvestPriceId, generation, baseValue);
         public float Health => health;
         public float MaxHealth => maxHealth;
 
@@ -54,6 +56,9 @@ namespace WhatTheFarm.Prototype
             sourceKind = source.Kind;
             generation = source.Generation;
             baseValue = source.BaseValue;
+            customPriceId = source.CustomPriceId;
+            harvestPriceId = !string.IsNullOrWhiteSpace(customPriceId) ? customPriceId :
+                growableTool != null ? "shovel" : sourceKind == ItemKind.Seed ? "produce" : source.PriceId;
             growthProfile = corpse == null ? source.GrowthProfile : null;
             growthTime = growthProfile != null
                 ? Mathf.Max(.1f, growthProfile.growthSeconds + generation * growthProfile.secondsPerGeneration)
@@ -240,6 +245,7 @@ namespace WhatTheFarm.Prototype
             ReleaseSoil();
             FarmItem harvested = gameObject.AddComponent<FarmItem>();
             harvested.Configure(resultKind, generation, baseValue);
+            harvested.SetPriceId(customPriceId);
             harvested.SetOriginalScale(originalItemScale);
             harvested.SetGrowthProfile(growthProfile);
             harvested.MarkPlanted();
