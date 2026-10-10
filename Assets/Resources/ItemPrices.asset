@@ -63,4 +63,18 @@ MonoBehaviour:
     purchasePrice: 0
     salePrice: 3
     growthSeconds: 4
+  - id: plant-tomato
+    label: Tomato Plant
+    purchasePrice: 0
+    salePrice: 10
+    growthSeconds: 4
+    minSizePercent: 75
+    maxSizePercent: 150
+  - id: plant-cabbage
+    label: Cabbage
+    purchasePrice: 0
+    salePrice: 10
+    growthSeconds: 4
+    minSizePercent: 75
+    maxSizePercent: 150
   generationMultiplier: 1.8

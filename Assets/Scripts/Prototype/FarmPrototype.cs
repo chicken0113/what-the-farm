@@ -350,6 +350,21 @@ namespace WhatTheFarm.Prototype
                 SetMessage("Weed planted. It stays unchanged; press E to pick it up again.");
                 return true;
             }
+            if (item.Kind == ItemKind.Seed)
+            {
+                var plants = RandomPlantCatalog.Active;
+                var selected = plants != null ? plants.Pick() : null;
+                if (selected == null) { SetMessage("No plant models are configured."); return false; }
+                if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
+                var model = plants.CreateModel(selected, position, transform);
+                var crop = model.AddComponent<FleeingCrop>();
+                if (!plot.Plant(crop)) { Destroy(model); return false; }
+                crop.Configure(this, item, plot, position.y);
+                crop.ConfigureRandomPlant(selected);
+                item.MarkPlanted();
+                SetMessage($"Planted {selected.displayName}. Use the watering can to start growth.");
+                return true;
+            }
             if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             EnsureMaterials();
             Vector3 size = item.transform.lossyScale;
@@ -478,8 +493,10 @@ namespace WhatTheFarm.Prototype
                     target = $"{corpse.DisplayName} - Recovering {corpse.Health:0}/{corpse.MaxHealth:0} HP";
                 else if (crop != null)
                     target = crop.IsMature
-                        ? $"Crop +{crop.Generation} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
-                        : $"Growing - size rate {crop.GrowthRatePercent:0}% | water {crop.Plot.WaterAmount:0}/100";
+                        ? $"{crop.DisplayName} - {Mathf.CeilToInt(crop.Health)}/{Mathf.CeilToInt(crop.MaxHealth)} HP - {crop.Value} gold"
+                        : crop.RolledSize > 0
+                            ? $"Growing {crop.DisplayName} - target size {crop.RolledSize * 100:0}% | water {crop.Plot.WaterAmount:0}/100"
+                            : $"Growing - size rate {crop.GrowthRatePercent:0}% | water {crop.Plot.WaterAmount:0}/100";
                 else if (npc != null)
                     target = npc.IsHostile ? $"{npc.DisplayName} - Hostile! {guardian.Health:0}/{guardian.MaxHealth:0} HP" : $"{npc.DisplayName} - E talk / Q throw to sell";
                 else if (guardian != null) target = $"Guardian - {guardian.Health:0}/{guardian.MaxHealth:0} HP";

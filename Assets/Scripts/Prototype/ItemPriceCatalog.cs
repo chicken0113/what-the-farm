@@ -17,6 +17,8 @@ namespace WhatTheFarm.Prototype
             [Min(0)] public int salePrice;
             [Min(.1f), Tooltip("Seconds of active growth needed to fully mature.")]
             public float growthSeconds = 4;
+            [Min(1)] public float minSizePercent = 75;
+            [Min(1)] public float maxSizePercent = 150;
         }
         public List<Entry> entries = new();
         [Min(1)] public float generationMultiplier = 1.8f;
@@ -37,7 +39,16 @@ namespace WhatTheFarm.Prototype
             return row != null ? Mathf.Max(0, row.purchasePrice) : Mathf.Max(0, item.BaseValue);
         }
         public static int Sale(FarmItem item)
-            => Sale(item.PriceId, item.Generation, item.BaseValue);
+            => item.SizePriced ? SaleBySize(item.PriceId, item.BaseValue, item.SizeMultiplier) : Sale(item.PriceId, item.Generation, item.BaseValue);
+        public static int SaleBySize(string id, int fallback, float size)
+            => (int)Math.Min(int.MaxValue, Math.Round(Math.Max(0, Active?.Find(id)?.salePrice ?? fallback) * (double)Mathf.Max(0, size), MidpointRounding.ToEven));
+        public static float RollPlantSize(string id)
+        {
+            var row = Active?.Find(id);
+            float min = Mathf.Max(1, row?.minSizePercent ?? 75);
+            float max = Mathf.Max(min, row?.maxSizePercent ?? 150);
+            return UnityEngine.Random.Range(min, max) / 100;
+        }
         public static int Sale(string id, int generation, int fallbackValue)
         {
             var catalog = Active;

@@ -14,6 +14,11 @@ namespace WhatTheFarm.Prototype
         private string growthPriceId;
         private float growthTime;
         private float growthProgress;
+        private bool randomPlant;
+        private float rolledSize;
+        private string plantDisplayName;
+        public float RolledSize => rolledSize;
+        public string DisplayName => randomPlant ? plantDisplayName : $"Crop +{generation}";
         private float health;
         private float maxHealth;
         private float nextFleeDirectionTime;
@@ -40,7 +45,23 @@ namespace WhatTheFarm.Prototype
         public bool IsWatered => plot != null && plot.IsWatered;
         public FarmPlot Plot => plot;
         public int Generation => generation;
-        public int Value => ItemPriceCatalog.Sale(harvestPriceId, generation, baseValue);
+        public int Value => randomPlant ? ItemPriceCatalog.SaleBySize(harvestPriceId, baseValue, CurrentPlantSize) : ItemPriceCatalog.Sale(harvestPriceId, generation, baseValue);
+        private float CurrentPlantSize => transform.localScale.x / Mathf.Max(.0001f, initialScale.x);
+        public void ConfigureRandomPlant(RandomPlantCatalog.Plant plant)
+        {
+            randomPlant = true;
+            plantDisplayName = plant.displayName;
+            customPriceId = harvestPriceId = growthPriceId = plant.priceId;
+            originalItemScale = initialScale;
+            rolledSize = ItemPriceCatalog.RollPlantSize(plant.priceId);
+            ApplyPlantSize(.15f);
+            gameObject.name = $"Growing {plantDisplayName}";
+        }
+        private void ApplyPlantSize(float size)
+        {
+            transform.localScale = initialScale * size;
+            Vector3 position = transform.position; position.y = groundHeight + baseOffset * size; transform.position = position;
+        }
         public float Health => health;
         public float MaxHealth => maxHealth;
 
@@ -53,7 +74,7 @@ namespace WhatTheFarm.Prototype
             groundHeight = soilHeight;
             initialScale = transform.localScale;
             originalItemScale = source.OriginalScale;
-            bodies = GetComponentsInChildren<Collider>();
+            bodies = System.Array.FindAll(GetComponentsInChildren<Collider>(), body => body.enabled);
             sourceKind = source.Kind;
             generation = source.Generation;
             baseValue = source.BaseValue;
@@ -182,8 +203,8 @@ namespace WhatTheFarm.Prototype
             float baseSize = growthProfile != null
                 ? growthProfile.matureSizeMultiplier + generation * growthProfile.sizePerGeneration
                 : 2f + generation * .32f;
-            float finalSize = Mathf.Max(1, baseSize * growthRatePercent / 100);
-            float size = Mathf.Lerp(1f, finalSize, growthProgress / growthTime);
+            float finalSize = randomPlant ? rolledSize : Mathf.Max(1, baseSize * growthRatePercent / 100);
+            float size = Mathf.Lerp(randomPlant ? .15f : 1f, finalSize, growthProgress / growthTime);
             if (growableTool != null)
             {
                 transform.localScale = initialScale;
@@ -191,14 +212,11 @@ namespace WhatTheFarm.Prototype
             }
             else
             {
-                transform.localScale = initialScale * size;
-                Vector3 position = transform.position;
-                position.y = groundHeight + baseOffset * size;
-                transform.position = position;
+                ApplyPlantSize(size);
             }
             if (IsMature)
             {
-                gameObject.name = $"Mature crop +{generation}";
+                gameObject.name = randomPlant ? $"Mature {plantDisplayName}" : $"Mature crop +{generation}";
                 ReleaseSoil();
             }
         }
@@ -249,6 +267,7 @@ namespace WhatTheFarm.Prototype
             FarmItem harvested = gameObject.AddComponent<FarmItem>();
             harvested.Configure(resultKind, generation, baseValue);
             harvested.SetPriceId(customPriceId);
+            if (randomPlant) harvested.SetPlantIdentity(plantDisplayName);
             harvested.SetOriginalScale(originalItemScale);
             harvested.SetGrowthProfile(growthProfile);
             harvested.MarkPlanted();

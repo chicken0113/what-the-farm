@@ -20,6 +20,10 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(0)] private int baseValue = 10;
         [SerializeField, Tooltip("Optional unique price ID for a new item. Empty uses the built-in kind/state price.")]
         private string customPriceId;
+        [SerializeField] private bool sizePriced;
+        [SerializeField] private string plantDisplayName;
+        public bool SizePriced => sizePriced;
+        public void SetPlantIdentity(string name) { plantDisplayName = name; sizePriced = true; }
         public string CustomPriceId => customPriceId;
         public void SetPriceId(string id) => customPriceId = id;
         public string PriceId => string.IsNullOrWhiteSpace(customPriceId) ? ItemPriceCatalog.DefaultId(this) : customPriceId;
@@ -146,6 +150,7 @@ namespace WhatTheFarm.Prototype
         {
             get
             {
+                if (!string.IsNullOrWhiteSpace(plantDisplayName)) return plantDisplayName;
                 if (Kind == ItemKind.Corpse) return GetComponent<PlantableCorpse>()?.DisplayName ?? "Body";
                 string name = Kind switch
                 {

@@ -14,7 +14,7 @@ public sealed class ItemPriceWindow : EditorWindow
     public static void Open() => GetWindow<ItemPriceWindow>("가격 / 성장");
     private void OnEnable()
     {
-        minSize = new Vector2(650, 320);
+        minSize = new Vector2(850, 320);
         catalog = EnsureCatalog();
     }
     public static ItemPriceCatalog EnsureCatalog()
@@ -42,6 +42,9 @@ public sealed class ItemPriceWindow : EditorWindow
         Add("npc-body", "NPC 시체", 50, 50);
         Add("player-body", "플레이어 시체", 50, 50);
         Add("weed", "잡초", 0, 3);
+        var plants = RandomPlantCatalog.Active;
+        if (plants != null)
+            foreach (var plant in plants.plants) if (plant != null) Add(plant.priceId, plant.displayName, 0, 10);
         // Discover prefab kinds and assigned custom IDs without resetting existing prices.
         foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" }))
         {
@@ -63,10 +66,13 @@ public sealed class ItemPriceWindow : EditorWindow
         Undo.RecordObject(catalog, "Edit item prices");
         EditorGUI.BeginChangeCheck();
         catalog.generationMultiplier = Mathf.Max(1, EditorGUILayout.FloatField("세대별 판매가 배율", catalog.generationMultiplier));
+        EditorGUILayout.HelpBox("씨앗은 무작위 식물로 자랍니다. 식물 행의 최소/최대 크기 사이에서 심을 때 한 번 결정합니다. 100%는 모델의 기준 크기입니다. 식물 판매액 = 기본 판매가 × 크기 비율 (정수 반올림). 식물에는 세대 배율을 적용하지 않습니다.", MessageType.None);
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label("아이템 / 가격 ID", GUILayout.MinWidth(180));
         GUILayout.Label("구매가", GUILayout.Width(80)); GUILayout.Label("기본 판매가", GUILayout.Width(80));
         GUILayout.Label("성장 시간 (초)", GUILayout.Width(110));
+        GUILayout.Label("최소 크기 (%)", GUILayout.Width(100));
+        GUILayout.Label("최대 크기 (%)", GUILayout.Width(100));
         EditorGUILayout.EndHorizontal();
         scroll = EditorGUILayout.BeginScrollView(scroll);
         foreach (var row in catalog.entries.Where(row => row != null &&
@@ -78,9 +84,16 @@ public sealed class ItemPriceWindow : EditorWindow
             row.salePrice = Mathf.Max(0, EditorGUILayout.IntField(row.salePrice, GUILayout.Width(80)));
             bool body = row.id == "npc-body" || row.id == "player-body";
             bool finished = row.id == "shovel";
-            if (row.id == "weed" || body || finished)
-                GUILayout.Label(body ? "체력 회복" : finished ? "성장 완료" : "성장 없음", GUILayout.Width(110));
+            if (row.id == "weed" || body || finished || row.id == "seed")
+                GUILayout.Label(body ? "체력 회복" : finished ? "성장 완료" : row.id == "seed" ? "식물별 설정" : "성장 없음", GUILayout.Width(110));
             else row.growthSeconds = Mathf.Max(.1f, EditorGUILayout.FloatField(row.growthSeconds, GUILayout.Width(110)));
+            bool plant = RandomPlantCatalog.Active != null && RandomPlantCatalog.Active.plants.Any(p => p != null && p.priceId == row.id);
+            if (plant)
+            {
+                row.minSizePercent = Mathf.Max(1, EditorGUILayout.FloatField(row.minSizePercent, GUILayout.Width(100)));
+                row.maxSizePercent = Mathf.Max(row.minSizePercent, EditorGUILayout.FloatField(row.maxSizePercent, GUILayout.Width(100)));
+            }
+            else { GUILayout.Label("—", GUILayout.Width(100)); GUILayout.Label("—", GUILayout.Width(100)); }
             EditorGUILayout.EndHorizontal();
         }
         EditorGUILayout.EndScrollView();
