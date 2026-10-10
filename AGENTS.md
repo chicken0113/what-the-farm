@@ -31,4 +31,4 @@
 
 - First-stage wild weeds spawn only within the merchant peaceful boundary from FarmFirstStage, with a 0.5m inset. Use shared IsInsidePeacefulArea and clip sampled ground bounds to this region. Do not apply this first-stage encounter boundary to later stages. Preserve user edits to ItemPrices.asset.
 
-- Inventory/hotbar labels must use FarmItem.DisplayName, the same name as pickup/throw/sale messages; do not duplicate kind-to-name switches. Wrap long names in slots. WeedGreen must reference URP Lit and set green _BaseColor; never create weed materials from a null-shader base material.
+- Inventory/hotbar slots show actual item model thumbnails instead of names, with slot hotkeys retained. InventoryModelIcons copies only mesh visuals (including baked skinned bodies), never gameplay scripts; cache thumbnails and release them on removal/player destruction. Pickup/throw/sale messages still use FarmItem.DisplayName. WeedGreen must reference URP Lit and set green _BaseColor; never create weed materials from a null-shader base material.

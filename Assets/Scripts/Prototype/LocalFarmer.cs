@@ -10,6 +10,8 @@ namespace WhatTheFarm.Prototype
         private CharacterController body;
         private Camera view;
         private FarmItem[] inventory;
+        private readonly InventoryModelIcons inventoryIcons = new();
+        private void OnDestroy() => inventoryIcons.Dispose();
         private Vector2 inventoryScroll;
         private int selectedSlot;
         private int movingSlot = -1;
@@ -204,6 +206,7 @@ namespace WhatTheFarm.Prototype
 
         private void RefreshHeldItem()
         {
+            if (inventory != null) inventoryIcons.Prune(inventory);
             actions?.Stop();
             if (emptyHand != null) emptyHand.SetVisible(HeldItem == null);
             for (int index = 0; index < inventory.Length; index++)
@@ -420,8 +423,6 @@ namespace WhatTheFarm.Prototype
                 new Rect(0f, 0f, columns * (slotSize + gap) + 8f,
                     rows * (slotSize + gap) + 8f));
 
-            var slotStyle = new GUIStyle(GUI.skin.button) { wordWrap = true, fontSize = 11 };
-
             for (int index = 0; index < inventory.Length; index++)
             {
                 int column = index % columns;
@@ -432,8 +433,9 @@ namespace WhatTheFarm.Prototype
                 GUI.backgroundColor = index == movingSlot ? new Color(1f, 0.8f, 0.3f) :
                     index == selectedSlot ? new Color(0.5f, 0.85f, 1f) : Color.white;
                 string prefix = index < HotbarSlots ? $"{index + 1}" : $"#{index + 1}";
-                if (GUI.Button(rect, $"{prefix}\n{SlotLabel(inventory[index])}", slotStyle))
+                if (GUI.Button(rect, GUIContent.none))
                     ClickInventorySlot(index);
+                DrawItemModel(rect, inventory[index], prefix);
                 GUI.backgroundColor = original;
             }
             GUI.EndScrollView();
@@ -443,13 +445,13 @@ namespace WhatTheFarm.Prototype
         {
             float slotSize = Mathf.Min(70f, (Screen.width - 20f) / HotbarSlots);
             float startX = (Screen.width - HotbarSlots * slotSize) * 0.5f;
-            var slotStyle = new GUIStyle(GUI.skin.box) { wordWrap = true, fontSize = 11 };
             for (int index = 0; index < HotbarSlots; index++)
             {
                 Color original = GUI.backgroundColor;
                 GUI.backgroundColor = index == selectedSlot ? new Color(0.5f, 0.85f, 1f) : Color.white;
-                GUI.Box(new Rect(startX + index * slotSize, Screen.height - slotSize - 10f,
-                    slotSize - 3f, slotSize), $"{index + 1}\n{SlotLabel(inventory[index])}", slotStyle);
+                var rect = new Rect(startX + index * slotSize, Screen.height - slotSize - 10f, slotSize - 3f, slotSize);
+                GUI.Box(rect, GUIContent.none);
+                DrawItemModel(rect, inventory[index], (index + 1).ToString());
                 GUI.backgroundColor = original;
             }
         }
@@ -478,12 +480,12 @@ namespace WhatTheFarm.Prototype
             movingSlot = -1;
         }
 
-        private static string SlotLabel(FarmItem item)
+        private void DrawItemModel(Rect rect, FarmItem item, string number)
         {
-            if (item == null)
-                return "Empty";
-
-            return item.DisplayName;
+            Texture image = inventoryIcons.Get(item);
+            if (image != null)
+                GUI.DrawTexture(new Rect(rect.x + 5, rect.y + 7, rect.width - 10, rect.height - 12), image, ScaleMode.ScaleToFit, true);
+            GUI.Label(new Rect(rect.x + 5, rect.y + 2, rect.width - 10, 18), number);
         }
     }
 }
