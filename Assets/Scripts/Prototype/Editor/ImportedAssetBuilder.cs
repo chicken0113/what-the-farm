@@ -154,7 +154,12 @@ public static class ImportedAssetBuilder
             if (item.GetComponentInChildren<MeshFilter>() == null || !world.TryPlant(item, plot, point))
                 throw new InvalidOperationException("Imported item cannot be planted.");
             var crop = world.GetComponentsInChildren<FleeingCrop>()[^1];
-            if (Mathf.Abs(BoundsOf(crop.gameObject).min.y) > .01f) throw new InvalidOperationException("Imported plant floats.");
+            var plantedBounds=BoundsOf(crop.gameObject);
+            if (crop.GetComponent<GrowableTool>() != null)
+            {
+                if (plantedBounds.min.y>=point.y || plantedBounds.max.y<=point.y) throw new InvalidOperationException("Shovel not partly buried.");
+            }
+            else if (Mathf.Abs(plantedBounds.min.y) > .01f) throw new InvalidOperationException("Imported plant floats.");
             plot.Water(50); crop.Grow(10);
             var grownObject = crop.gameObject;
             var grownScale = crop.transform.lossyScale;

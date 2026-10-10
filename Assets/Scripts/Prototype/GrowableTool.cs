@@ -14,6 +14,24 @@ namespace WhatTheFarm.Prototype
         { model = visual; headMesh = head; completeMesh = complete; Apply(); }
         private void Awake() => Apply();
         public void ShowComplete() { planted = true; Apply(); }
+        private float BottomOffset(Mesh mesh)
+        {
+            var bounds = mesh.bounds; float bottom = float.PositiveInfinity;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                var point = bounds.center + Vector3.Scale(bounds.extents, new Vector3(
+                    (corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                bottom = Mathf.Min(bottom, model.transform.TransformPoint(point).y - transform.position.y);
+            }
+            return bottom;
+        }
+        public void RiseFromSoil(float groundHeight, float progress)
+        {
+            Vector3 position = transform.position;
+            // Start with the blade above soil and the unchanged handle buried beneath it.
+            position.y = groundHeight - Mathf.Lerp(BottomOffset(headMesh), BottomOffset(completeMesh), Mathf.Clamp01(progress));
+            transform.position = position;
+        }
         private void Apply()
         {
             if (model == null || headMesh == null || completeMesh == null) return;

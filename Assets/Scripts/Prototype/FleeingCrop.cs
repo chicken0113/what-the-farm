@@ -23,6 +23,7 @@ namespace WhatTheFarm.Prototype
         private float baseOffset;
         private bool removed;
         private PlantableCorpse corpse;
+        private GrowableTool growableTool;
         private float groundHeight;
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private float growthRatePercent = 100;
@@ -42,6 +43,7 @@ namespace WhatTheFarm.Prototype
         {
             world = prototype;
             corpse = GetComponent<PlantableCorpse>();
+            growableTool = GetComponent<GrowableTool>();
             plot = homePlot;
             groundHeight = soilHeight;
             initialScale = transform.localScale;
@@ -76,6 +78,7 @@ namespace WhatTheFarm.Prototype
             Vector3 position = transform.position;
             position.y = groundHeight + baseOffset;
             transform.position = position;
+            if (growableTool != null && corpse == null) growableTool.RiseFromSoil(groundHeight, 0);
             gameObject.name = corpse != null ? $"Recovering {source.DisplayName}" : $"Growing {source.DisplayName}";
         }
 
@@ -120,16 +123,21 @@ namespace WhatTheFarm.Prototype
                 : 2f + generation * .32f;
             float finalSize = Mathf.Max(1, baseSize * growthRatePercent / 100);
             float size = Mathf.Lerp(1f, finalSize, growthProgress / growthTime);
-            transform.localScale = initialScale * size;
-            Vector3 position = transform.position;
-            position.y = groundHeight + baseOffset * size;
-            transform.position = position;
+            if (growableTool != null)
+            {
+                transform.localScale = initialScale;
+                growableTool.RiseFromSoil(groundHeight, growthProgress / growthTime);
+            }
+            else
+            {
+                transform.localScale = initialScale * size;
+                Vector3 position = transform.position;
+                position.y = groundHeight + baseOffset * size;
+                transform.position = position;
+            }
             if (IsMature)
             {
                 gameObject.name = $"Mature crop +{generation}";
-                foreach (Renderer renderer in visuals)
-                    foreach (Material material in renderer.sharedMaterials)
-                        if (material != null) material.color = new Color(1f, .48f, .13f);
                 ReleaseSoil();
             }
         }

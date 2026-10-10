@@ -201,8 +201,18 @@ public static class UnityMigrationPlayCheck
                     Check(player.HeldItem==null && player.EmptyHand.IsVisible,"Planting did not restore empty hand");
                     var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single();
                     Check(plantedExtra.GetComponent<GrowableTool>().IsComplete && plantedExtra.GetComponentInChildren<MeshFilter>().sharedMesh.vertexCount>headVertices,"Planting did not reveal complete shovel");
+                    var shovelScale=plantedExtra.transform.lossyScale; float buriedY=plantedExtra.transform.position.y;
+                    var shovelRenderer=plantedExtra.GetComponentInChildren<Renderer>();
+                    var shovelColours=shovelRenderer.sharedMaterials.Select(m=>m.color).ToArray();
+                    Check(shovelRenderer.bounds.min.y<largerPoint.y-.1f && shovelRenderer.bounds.max.y>largerPoint.y,"Shovel handle not buried below exposed blade");
                     plantedExtra.Grow(20); Check(!plantedExtra.IsMature,"Unwatered shovel grew");
-                    plantedExtra.Plot.Water(50); plantedExtra.Grow(20); plantedExtra.TakeHit(100);
+                    Check(plantedExtra.transform.position.y==buriedY && plantedExtra.transform.lossyScale==shovelScale,"Dry shovel moved or changed size");
+                    plantedExtra.Plot.Water(50); plantedExtra.Grow(plantedExtra.GrowthProfile.growthSeconds*.5f);
+                    Check(!plantedExtra.IsMature && plantedExtra.transform.position.y>buriedY && shovelRenderer.bounds.min.y<largerPoint.y-.05f && plantedExtra.transform.lossyScale==shovelScale,"Shovel did not rise gradually at constant size");
+                    plantedExtra.Grow(20);
+                    Check(Mathf.Abs(shovelRenderer.bounds.min.y-largerPoint.y)<.001f && plantedExtra.transform.lossyScale==shovelScale,"Mature shovel not fully raised or changed size");
+                    Check(shovelColours.SequenceEqual(shovelRenderer.sharedMaterials.Select(m=>m.color)),"Maturity recoloured shovel");
+                    plantedExtra.TakeHit(100);
                     var readyShovel=plantedExtra.GetComponents<FarmItem>().Last(i=>i.HasBeenPlanted);
                     Check(readyShovel!=null && readyShovel.CanUseTool && readyShovel.HasBeenPlanted && readyShovel.GetComponent<GrowableTool>().IsComplete,"Harvested shovel not usable/full model");
                     Hold(readyShovel,0); UnityEngine.Object.Destroy(stock.gameObject);
@@ -426,7 +436,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: 1.5x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: shovel handle buried below exposed blade, dry shovel stationary, gradual upward translation at fixed scale, full emergence, colours preserved; 1.5x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;
