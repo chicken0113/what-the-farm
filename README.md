@@ -166,3 +166,5 @@ MerchantSMG.prefab은 기존 총기 모델과 기존 URP 무기 머티리얼을 
 줍기/던지기/판매 메시지의 아이템 이름은 FarmItem.DisplayName을 공통으로 사용합니다. WeedGreen.mat은 URP Lit 셰이더와 녹색 _BaseColor를 사용합니다.
 
 인벤토리와 핫바는 이름 대신 현재 아이템의 실제 모델 썸네일을 표시합니다. 숫자 단축키와 선택 칸 표시는 유지합니다. 삽 머리와 완성된 삽은 각각 현재 모양으로 표시되며, 도구·작물·잡초·몸체도 같은 방식으로 렌더링합니다. 썸네일은 처음 표시할 때 생성하고 캐시하며, 아이템을 버리거나 플레이어가 제거되면 해제합니다.
+
+썸네일 생성은 LocalFarmer.LateUpdate에서 수행하고 OnGUI에서는 캐시된 이미지만 그립니다. URP 렌더링 중 중첩 렌더 요청으로 생기는 UniversalCameraData 오류를 방지합니다. Farm Prototype의 **Tool Tilling Range Multiplier**(기본 0.5)로 삽 경작 반경을 조절할 수 있습니다. 기존 반경의 절반이며, 삽 크기에 따른 정비례는 유지합니다.

@@ -12,6 +12,7 @@ namespace WhatTheFarm.Prototype
         private FarmItem[] inventory;
         private readonly InventoryModelIcons inventoryIcons = new();
         private void OnDestroy() => inventoryIcons.Dispose();
+        private void LateUpdate() => inventoryIcons.Prepare(inventory);
         private Vector2 inventoryScroll;
         private int selectedSlot;
         private int movingSlot = -1;

@@ -22,9 +22,21 @@ namespace WhatTheFarm.Prototype
         public Texture Get(FarmItem item)
         {
             if (item == null) return null;
+            return icons.TryGetValue(item.GetInstanceID(), out var icon) ? icon.image : null;
+        }
+        // OnGUI runs inside URP's render loop. Submit requests only before rendering.
+        public void Prepare(FarmItem[] inventory)
+        {
+            if (inventory == null) return;
+            Prune(inventory);
+            foreach (var item in inventory)
+                if (item != null && !icons.ContainsKey(item.GetInstanceID())) Generate(item);
+        }
+        private Texture Generate(FarmItem item)
+        {
+            if (item == null) return null;
             int id = item.GetInstanceID();
             if (icons.TryGetValue(id, out var icon)) return icon.image;
-            if (Event.current != null && Event.current.type != EventType.Repaint) return null;
             EnsureStudio();
             var model = new GameObject("Inventory visual"); model.layer = PreviewLayer;
             model.transform.SetParent(studio.transform, false);

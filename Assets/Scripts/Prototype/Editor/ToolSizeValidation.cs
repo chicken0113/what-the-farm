@@ -19,12 +19,12 @@ public static class ToolSizeValidation
         Physics.SyncTransforms();
         var hoe = world.CreateItem(ItemKind.Tool, 0, 10, Vector3.up * 10);
         var can = world.CreateItem(ItemKind.WateringCan, 0, 10, Vector3.up * 10);
-        Near(hoe.SizeMultiplier, 1); Near(world.TillingRadiusFor(hoe), .8f);
+        Near(hoe.SizeMultiplier, 1); Near(world.TillingRadiusFor(hoe), .4f);
         hoe.transform.localScale *= 2;
-        Near(hoe.SizeMultiplier, 2); Near(world.TillingRadiusFor(hoe), 1.6f);
+        Near(hoe.SizeMultiplier, 2); Near(world.TillingRadiusFor(hoe), .8f);
         var point = new Vector3(-5, 0, 0);
         if (!world.TryTill(soil, point, hoe)) throw new InvalidOperationException("Large hoe failed to till.");
-        Near(soil.FindPlot(point).Radius, 1.6f);
+        Near(soil.FindPlot(point).Radius, .8f);
         var dry = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Blockout/Tilled.mat");
         var wet = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Blockout/Wet.mat");
         var plots = new FarmPlot[4];
@@ -66,14 +66,14 @@ public static class ToolSizeValidation
             if (hoe.OriginalScale != baseline || hoe.SizeMultiplier <= plantedSize)
                 throw new InvalidOperationException("Harvest reset tool size reference.");
             Near(hoe.SizeMultiplier, actualScale.y / baseline.y);
-            Near(world.TillingRadiusFor(hoe), .8f * hoe.SizeMultiplier);
+            Near(world.TillingRadiusFor(hoe), .4f * hoe.SizeMultiplier);
         }
         if (!hoe.HasBeenPlanted || world.TryPlant(hoe, home, point)) throw new InvalidOperationException("Tool allowed a second planting.");
         // Nested imported models use the same root ratio as primitive tools.
         var imported = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<FarmItem>("Assets/Prefabs/Game/Hoe.prefab"));
         imported.Configure(ItemKind.Tool, 0, 10);
         imported.transform.localScale *= 3;
-        Near(imported.SizeMultiplier, 9); Near(world.TillingRadiusFor(imported), 7.2f);
+        Near(imported.SizeMultiplier, 9); Near(world.TillingRadiusFor(imported), 3.6f);
         UnityEngine.Object.DestroyImmediate(imported.gameObject);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         Debug.Log("Linear tool radius, multi-plant watering, smaller tools and harvest size inheritance and single planting validation passed.");

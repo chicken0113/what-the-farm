@@ -276,7 +276,7 @@ public static class UnityMigrationPlayCheck
                     scale=crop.transform.lossyScale; var model=crop.gameObject; crop.TakeHit(1000); grownItem=model.GetComponent<FarmItem>();
                     Check(grownItem.HasBeenPlanted && grownItem.transform.lossyScale==scale,"Harvest size/history changed: planted="+grownItem.HasBeenPlanted+" before="+scale.ToString("F6")+" after="+grownItem.transform.lossyScale.ToString("F6"));
                     Check(!world.TryPlant(grownItem,home,plantedPoint),"Harvested item can be replanted");
-                    Check(Mathf.Abs(world.TillingRadiusFor(grownItem)-.8f*grownItem.SizeMultiplier)<.001f,"Grown tool radius not linear");
+                    Check(Mathf.Abs(world.TillingRadiusFor(grownItem)-.4f*grownItem.SizeMultiplier)<.001f,"Grown tool radius not linear");
                     UnityEngine.Object.Destroy(can.gameObject); Hold(grownItem,2);
                     // A thrown object must be converted by the existing NPC physics trigger.
                     var npc=UnityEngine.Object.FindFirstObjectByType<NpcMerchant>();
