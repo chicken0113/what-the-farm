@@ -8,6 +8,18 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Mesh headMesh;
         [SerializeField] private Mesh completeMesh;
         [SerializeField] private bool planted;
+        [SerializeField, Min(.1f)] private float aggroRange = 8;
+        [SerializeField, Min(.1f)] private float chaseSpeed = 2.5f;
+        [SerializeField, Min(.1f)] private float attackRange = 1.25f;
+        [SerializeField, Min(1)] private float attackDamage = 10;
+        [SerializeField, Min(.1f)] private float attackInterval = 1.2f;
+        [SerializeField, Min(.05f)] private float attackWindup = .3f;
+        public float AggroRange => aggroRange;
+        public float ChaseSpeed => chaseSpeed;
+        public float AttackRange => attackRange;
+        public float AttackDamage => attackDamage;
+        public float AttackInterval => attackInterval;
+        public float AttackWindup => attackWindup;
         public bool IsComplete => planted;
         public Mesh CompleteMesh => completeMesh;
         public void Configure(MeshFilter visual, Mesh head, Mesh complete)

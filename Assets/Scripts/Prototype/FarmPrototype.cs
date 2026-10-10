@@ -276,7 +276,7 @@ namespace WhatTheFarm.Prototype
             if (soil == null) return false;
             if (tool != null && !tool.CanUseTool)
             { SetMessage("Plant this shovel head, water it, and harvest the grown shovel before using it."); return false; }
-            if (soil.Till(point, TillingRadiusFor(tool), dryPlotMaterial, wetPlotMaterial) == null)
+            if (soil.Till(point, TillingRadiusFor(tool), dryPlotMaterial, wetPlotMaterial, tool == null) == null)
             {
                 SetMessage("This ground is already tilled.");
                 return false;

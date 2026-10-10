@@ -54,10 +54,10 @@ public static class GrowableShovelBuilder
             var existing=AssetDatabase.LoadAssetAtPath<Mesh>(Head);
             if (existing != null) { EditorUtility.CopySerialized(mesh,existing); UnityEngine.Object.DestroyImmediate(mesh); mesh=existing; EditorUtility.SetDirty(mesh); }
             else AssetDatabase.CreateAsset(mesh,Head);
-            if (tool == null) { root.transform.localScale*=1.5f; tool=root.AddComponent<GrowableTool>(); }
+            if (tool == null) { root.transform.localScale*=3; tool=root.AddComponent<GrowableTool>(); }
             tool.Configure(filter,mesh,source);
             PrefabUtility.SaveAsPrefabAsset(root,Prefab); AssetDatabase.SaveAssets();
-            Debug.Log($"GROWABLE_SHOVEL_READY: {triangles.Count/3} head triangles, complete height {(top-bottom)*1.5f:0.000}m");
+            Debug.Log($"GROWABLE_SHOVEL_READY: {triangles.Count/3} head triangles, complete scale {root.transform.localScale}");
         }
         finally { PrefabUtility.UnloadPrefabContents(root); }
     }

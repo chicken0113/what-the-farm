@@ -73,7 +73,7 @@ public static class ToolSizeValidation
         var imported = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<FarmItem>("Assets/Prefabs/Game/Hoe.prefab"));
         imported.Configure(ItemKind.Tool, 0, 10);
         imported.transform.localScale *= 3;
-        Near(imported.SizeMultiplier, 4.5f); Near(world.TillingRadiusFor(imported), 3.6f);
+        Near(imported.SizeMultiplier, 9); Near(world.TillingRadiusFor(imported), 7.2f);
         UnityEngine.Object.DestroyImmediate(imported.gameObject);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         Debug.Log("Linear tool radius, multi-plant watering, smaller tools and harvest size inheritance and single planting validation passed.");

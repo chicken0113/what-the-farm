@@ -25,6 +25,7 @@ namespace WhatTheFarm.Prototype
         private PlantableCorpse corpse;
         private GrowableTool growableTool;
         private float groundHeight;
+        private float combatClock, nextAttack, attackRemaining = -1;
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private float growthRatePercent = 100;
         public PlantGrowthProfile GrowthProfile => growthProfile;
@@ -91,6 +92,7 @@ namespace WhatTheFarm.Prototype
                 return;
             }
 
+            if (growableTool != null) { TickCombat(Time.deltaTime); return; }
             Vector3 away = transform.position - world.PlayerPosition;
             away.y = 0f;
             if (away.sqrMagnitude > 36f || away.sqrMagnitude < 0.01f)
@@ -108,6 +110,47 @@ namespace WhatTheFarm.Prototype
             next.z = Mathf.Clamp(next.z, -world.ArenaHalfSize, world.ArenaHalfSize);
             transform.position = next;
             transform.Rotate(Vector3.up, 95f * Time.deltaTime, Space.World);
+        }
+
+        private bool ClearCombatPath(Vector3 from, Vector3 to, LocalFarmer player)
+        {
+            Vector3 difference = to-from;
+            foreach(var hit in Physics.RaycastAll(from,difference.normalized,difference.magnitude,~0,QueryTriggerInteraction.Ignore))
+                if(!hit.collider.transform.IsChildOf(transform) && !hit.collider.transform.IsChildOf(player.transform)) return false;
+            return true;
+        }
+        public void TickCombat(float elapsed)
+        {
+            if(elapsed<=0 || removed || corpse!=null || growableTool==null || !IsMature || world==null || world.Player==null) return;
+            combatClock+=elapsed;
+            var player=world.Player;
+            Vector3 toward=player.transform.position-transform.position; toward.y=0;
+            Quaternion facing=toward.sqrMagnitude>.001f ? Quaternion.LookRotation(toward) : Quaternion.Euler(0,transform.eulerAngles.y,0);
+            if(player.IsDead || toward.magnitude>growableTool.AggroRange)
+            { attackRemaining=-1; transform.rotation=facing; return; }
+            if(attackRemaining>=0)
+            {
+                attackRemaining-=elapsed;
+                float progress=1-Mathf.Clamp01(attackRemaining/growableTool.AttackWindup);
+                transform.rotation=facing*Quaternion.Euler(-35*Mathf.Sin(progress*Mathf.PI),0,0);
+                if(attackRemaining<=0)
+                {
+                    attackRemaining=-1; nextAttack=combatClock+growableTool.AttackInterval; transform.rotation=facing;
+                    Physics.SyncTransforms();
+                    if(toward.magnitude<=growableTool.AttackRange && ClearCombatPath(transform.position+Vector3.up*.4f,player.transform.position+Vector3.up*.75f,player))
+                        player.ReceiveDamage(growableTool.AttackDamage);
+                }
+                return;
+            }
+            transform.rotation=facing;
+            if(toward.magnitude>growableTool.AttackRange*.8f)
+            {
+                float step=Mathf.Min(growableTool.ChaseSpeed*elapsed,toward.magnitude-growableTool.AttackRange*.8f);
+                Vector3 next=transform.position+toward.normalized*step;
+                if(ClearCombatPath(transform.position+Vector3.up*.4f,next+Vector3.up*.4f,player)) transform.position=next;
+            }
+            if(toward.magnitude<=growableTool.AttackRange && combatClock>=nextAttack)
+                attackRemaining=growableTool.AttackWindup;
         }
 
         public void Grow(float elapsed)

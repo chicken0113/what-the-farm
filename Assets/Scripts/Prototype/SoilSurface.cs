@@ -68,9 +68,16 @@ namespace WhatTheFarm.Prototype
             return closest;
         }
 
-        public FarmPlot Till(Vector3 point, float radius, Material dry, Material wet)
+        public FarmPlot Till(Vector3 point, float radius, Material dry, Material wet, bool enlargeEmpty = false)
         {
-            if (FindPlot(point) != null) return null;
+            var existing=FindPlot(point);
+            if(existing!=null)
+            {
+                if(!enlargeEmpty || existing.IsOccupied) return null;
+                point=existing.transform.position; radius=existing.Radius+radius*.5f;
+                areas.Remove(existing);
+                if(Application.isPlaying) Destroy(existing.gameObject); else DestroyImmediate(existing.gameObject);
+            }
             radius = Mathf.Max(.01f, radius);
             Collider ground = GetComponent<Collider>();
             if (ground == null) return null;

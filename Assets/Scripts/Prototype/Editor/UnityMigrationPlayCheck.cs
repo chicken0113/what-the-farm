@@ -197,6 +197,7 @@ public static class UnityMigrationPlayCheck
                     player.HeldItem.transform.localScale=heldScale;
                     var largerPoint=new Vector3(1.3f,0,-8.5f);
                     Check(world.TryTill(soil,largerPoint),"Bare hand planting area till failed");
+                    Check(world.TryTill(soil,largerPoint) && soil.FindPlot(largerPoint).Radius>.1f,"Repeated bare-hand till did not enlarge empty soil for bigger blade");
                     Aim(largerPoint); player.Interact();
                     Check(player.HeldItem==null && player.EmptyHand.IsVisible,"Planting did not restore empty hand");
                     var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single();
@@ -212,7 +213,26 @@ public static class UnityMigrationPlayCheck
                     plantedExtra.Grow(20);
                     Check(Mathf.Abs(shovelRenderer.bounds.min.y-largerPoint.y)<.001f && plantedExtra.transform.lossyScale==shovelScale,"Mature shovel not fully raised or changed size");
                     Check(shovelColours.SequenceEqual(shovelRenderer.sharedMaterials.Select(m=>m.color)),"Maturity recoloured shovel");
+                    var combatStart=player.transform.position;
+                    Move(plantedExtra.transform.position+Vector3.right*3+Vector3.up*.1f);
+                    float beforeDistance=Vector3.Distance(plantedExtra.transform.position,player.transform.position);
+                    plantedExtra.TickCombat(.2f);
+                    Check(Vector3.Distance(plantedExtra.transform.position,player.transform.position)<beforeDistance,"Mature shovel fled instead of approaching player");
+                    Move(plantedExtra.transform.position+Vector3.right*.8f+Vector3.up*.1f);
+                    health=player.Health; plantedExtra.TickCombat(.01f);
+                    Check(player.Health==health,"Shovel attack had no windup");
+                    plantedExtra.TickCombat(.4f); Check(player.Health==health-10,"Mature shovel melee did not damage player");
+                    health=player.Health; plantedExtra.TickCombat(.1f); Check(player.Health==health,"Shovel ignored attack cooldown");
+                    var meleeCover=GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    meleeCover.transform.position=(plantedExtra.transform.position+player.transform.position)*.5f+Vector3.up*.6f;
+                    meleeCover.transform.localScale=new Vector3(.1f,1,.4f); Physics.SyncTransforms();
+                    plantedExtra.TickCombat(1.3f); plantedExtra.TickCombat(.4f); Check(player.Health==health,"Shovel hit through solid cover");
+                    meleeCover.GetComponent<Collider>().enabled=false; UnityEngine.Object.Destroy(meleeCover); Physics.SyncTransforms();
+                    plantedExtra.TickCombat(1.3f); Move(plantedExtra.transform.position+Vector3.right*3+Vector3.up*.1f);
+                    plantedExtra.TickCombat(.4f); Check(player.Health==health,"Retreating player could not avoid shovel attack");
+                    Move(combatStart);
                     plantedExtra.TakeHit(100);
+                    plantedExtra.TickCombat(.4f); Check(player.Health==health,"Harvested shovel still attacked");
                     var readyShovel=plantedExtra.GetComponents<FarmItem>().Last(i=>i.HasBeenPlanted);
                     Check(readyShovel!=null && readyShovel.CanUseTool && readyShovel.HasBeenPlanted && readyShovel.GetComponent<GrowableTool>().IsComplete,"Harvested shovel not usable/full model");
                     Hold(readyShovel,0); UnityEngine.Object.Destroy(stock.gameObject);
@@ -436,7 +456,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: shovel handle buried below exposed blade, dry shovel stationary, gradual upward translation at fixed scale, full emergence, colours preserved; 1.5x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: doubled shovel size, repeated bare-hand patch expansion, mature shovel pursues/melee attacks with windup/cooldown, cover blocks and retreat dodges, harvest stops attacks; shovel handle buried below exposed blade, dry shovel stationary, gradual upward translation at fixed scale, full emergence, colours preserved; 3x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;
