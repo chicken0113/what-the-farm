@@ -11,6 +11,7 @@ namespace WhatTheFarm.Prototype
         private int baseValue;
         private string customPriceId;
         private string harvestPriceId;
+        private string growthPriceId;
         private float growthTime;
         private float growthProgress;
         private float health;
@@ -57,6 +58,7 @@ namespace WhatTheFarm.Prototype
             generation = source.Generation;
             baseValue = source.BaseValue;
             customPriceId = source.CustomPriceId;
+            growthPriceId = source.PriceId;
             harvestPriceId = !string.IsNullOrWhiteSpace(customPriceId) ? customPriceId :
                 growableTool != null ? "shovel" : sourceKind == ItemKind.Seed ? "produce" : source.PriceId;
             growthProfile = corpse == null ? source.GrowthProfile : null;
@@ -175,7 +177,7 @@ namespace WhatTheFarm.Prototype
                 ? growthProfile.Evaluate(plot.GetLight(transform.position, transform), plot.WaterAmount, plot.SoilType)
                 : 100;
             if ((growthProfile == null || growthProfile.requireWaterToStart) && !plot.GrowthStarted) return;
-            growthProgress = Mathf.Min(growthTime, growthProgress + elapsed);
+            growthProgress = Mathf.Min(growthTime, growthProgress + elapsed * ItemPriceCatalog.GrowthSpeed(growthPriceId));
             float baseSize = growthProfile != null
                 ? growthProfile.matureSizeMultiplier + generation * growthProfile.sizePerGeneration
                 : 2f + generation * .32f;

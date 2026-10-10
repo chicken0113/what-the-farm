@@ -158,3 +158,7 @@ MerchantSMG.prefab은 기존 총기 모델과 기존 URP 무기 머티리얼을 
 `Assets/Resources/WeedSpawning.asset`에서 Enabled, Interval Seconds(기본 20초), Initial Count(12), Count Per Interval(3), Max Wild Weeds(60), Minimum Spacing(0.6m), Placement Attempts(32)를 조절합니다. Farm Prototype의 Weed Spawning에 별도 설정을 지정하면 해당 맵만 다른 설정을 사용할 수 있습니다. 빈 값은 위 공통 설정을 사용합니다. 잡초를 주우면 자연 잡초 수 제한에서 빠져 다음 주기에 새 잡초가 생성될 수 있습니다. `Assets/Resources/Weed.prefab`에서 모양을 바꿀 수 있습니다.
 
 잡초도 갈린 빈 밭에 심을 수 있으나 크기·모델·판매가가 변하지 않고 성장·공격·도주하지 않습니다. 직접 심은 잡초는 식재 칸을 차지하며, E로 다시 주우면 해당 칸을 비웁니다. 기존 아이템처럼 한 번 심은 잡초의 재식재는 제한됩니다. **What The Farm > Item Prices**의 잡초 행에서 가격을 조절합니다(기본 판매가 3골드).
+
+### 가격 도구의 성장 속도
+
+**What The Farm > Item Prices**에서 기본 판매가 오른쪽의 **성장 속도 (%)**를 조절합니다. 100%는 기존 성장 시간, 200%는 절반, 50%는 두 배이며 0%는 성장 진행을 멈춥니다. 기존 성장 프로필의 기본 시간과 세대별 추가 시간을 기준으로 하며, 물주기 시작 조건과 최종 크기에 대한 환경 보너스는 유지합니다. 변경은 성장 중인 대상에도 적용됩니다. 삽은 **삽 머리 (심기 전)** 행에서 속도를 조절합니다. 완성된 삽은 성장 완료, 잡초는 성장 없음, NPC/플레이어 시체는 체력 회복으로 표시합니다. 시체의 회복 시간은 기존 Farm Guardian / Farm Prototype 설정에서 조절합니다. 데이터는 기존 ItemPrices.asset에 함께 저장되며 새 아이템의 기본 속도는 100%입니다.

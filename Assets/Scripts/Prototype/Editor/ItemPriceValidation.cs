@@ -49,12 +49,51 @@ public static class ItemPriceValidation
                     "Player body uses NPC price");
             }
             finally { UnityEngine.Object.DestroyImmediate(bodyRoot); UnityEngine.Object.DestroyImmediate(owner); }
+            CheckGrowth(catalog);
             Debug.Log("ITEM_PRICE_VALIDATION_SUCCESS: complete catalog, live prices, custom IDs, shovel states, generations, all-kind sales and refill.");
         }
         finally
         {
             EditorJsonUtility.FromJsonOverwrite(snapshot, catalog);
             UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+    private static void CheckGrowth(ItemPriceCatalog catalog)
+    {
+        var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var farmRoot = new GameObject("Growth speed validation");
+        var sourceRoot = new GameObject("Growth source");
+        var profile = ScriptableObject.CreateInstance<PlantGrowthProfile>();
+        var material = new Material(AssetDatabase.LoadAssetAtPath<Material>("Assets/Settings/PrototypeBaseMaterial.mat"));
+        try
+        {
+            ground.transform.position = new Vector3(400, -.5f, 400); ground.transform.localScale = new Vector3(5, 1, 5);
+            var soil = ground.AddComponent<SoilSurface>(); Physics.SyncTransforms();
+            var plot = soil.Till(new Vector3(400, 0, 400), 1, material, material);
+            var world = farmRoot.AddComponent<FarmPrototype>();
+            var source = sourceRoot.AddComponent<FarmItem>(); source.Configure(ItemKind.Seed, 0, 10);
+            profile.growthSeconds = 4; profile.secondsPerGeneration = 0;
+            profile.useLightCondition = profile.useWaterCondition = profile.useSoilCondition = false;
+            source.SetGrowthProfile(profile);
+            var plant = GameObject.CreatePrimitive(PrimitiveType.Cube); plant.transform.SetParent(farmRoot.transform);
+            plant.GetComponent<Renderer>().sharedMaterial = new Material(material);
+            var crop = plant.AddComponent<FleeingCrop>(); Check(plot.Plant(crop), "Growth plot setup failed");
+            crop.Configure(world, source, plot, 0);
+            var row = catalog.Find("seed"); row.growthSpeedPercent = 100;
+            crop.Grow(100); Check(!crop.IsMature, "Speed control bypassed watering requirement");
+            plot.Water(25);
+            crop.Grow(1); Check(!crop.IsMature, "100% speed completed early");
+            row.growthSpeedPercent = 200; crop.Grow(1); Check(!crop.IsMature, "Live 200% change completed early");
+            row.growthSpeedPercent = 0; crop.Grow(100); Check(!crop.IsMature, "Zero speed did not pause growth");
+            row.growthSpeedPercent = 50; crop.Grow(1); Check(!crop.IsMature, "50% speed completed early");
+            crop.Grow(1); Check(crop.IsMature && Mathf.Abs(plant.transform.localScale.x - 2) < .001f,
+                "Growth speed did not affect completion timing or changed final size");
+            Debug.Log("ITEM_GROWTH_SPEED_VALIDATION_SUCCESS: water gate, live 100/200/0/50 percent speed and unchanged final size.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(farmRoot); UnityEngine.Object.DestroyImmediate(sourceRoot);
+            UnityEngine.Object.DestroyImmediate(ground); UnityEngine.Object.DestroyImmediate(profile); UnityEngine.Object.DestroyImmediate(material);
         }
     }
 }

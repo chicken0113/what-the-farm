@@ -17,40 +17,50 @@ MonoBehaviour:
     label: "\uC528\uC557"
     purchasePrice: 10
     salePrice: 10
+    growthSpeedPercent: 100
   - id: produce
     label: "\uC218\uD655\uBB3C"
     purchasePrice: 10
     salePrice: 10
+    growthSpeedPercent: 100
   - id: tool
     label: "\uAE30\uBCF8 \uAD2D\uC774"
     purchasePrice: 16
     salePrice: 16
+    growthSpeedPercent: 100
   - id: shovel-head
     label: "\uC0BD \uBA38\uB9AC (\uC2EC\uAE30 \uC804)"
     purchasePrice: 16
     salePrice: 16
+    growthSpeedPercent: 100
   - id: shovel
     label: "\uC644\uC131\uB41C \uC0BD"
     purchasePrice: 30
     salePrice: 30
+    growthSpeedPercent: 100
   - id: wateringcan
     label: "\uBB3C\uBFCC\uB9AC\uAC1C"
     purchasePrice: 14
     salePrice: 14
+    growthSpeedPercent: 100
   - id: curio
     label: "\uB3CC / \uC7A1\uB3D9\uC0AC\uB2C8"
     purchasePrice: 6
     salePrice: 6
+    growthSpeedPercent: 100
   - id: npc-body
     label: "NPC \uC2DC\uCCB4"
     purchasePrice: 50
     salePrice: 50
+    growthSpeedPercent: 100
   - id: player-body
     label: "\uD50C\uB808\uC774\uC5B4 \uC2DC\uCCB4"
     purchasePrice: 50
     salePrice: 50
+    growthSpeedPercent: 100
   - id: weed
     label: 잡초
     purchasePrice: 0
     salePrice: 3
+    growthSpeedPercent: 100
   generationMultiplier: 1.8

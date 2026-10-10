@@ -15,11 +15,14 @@ namespace WhatTheFarm.Prototype
             public string label;
             [Min(0)] public int purchasePrice;
             [Min(0)] public int salePrice;
+            [Min(0), Tooltip("100 = normal, 200 = twice as fast, 0 = pause growth.")]
+            public float growthSpeedPercent = 100;
         }
         public List<Entry> entries = new();
         [Min(1)] public float generationMultiplier = 1.8f;
         public static ItemPriceCatalog Active => Resources.Load<ItemPriceCatalog>(ResourceName);
         public Entry Find(string id) => entries.Find(row => row != null && row.id == id);
+        public static float GrowthSpeed(string id) => Mathf.Max(0, Active?.Find(id)?.growthSpeedPercent ?? 100) / 100f;
         public static string DefaultId(FarmItem item)
         {
             if (item.Kind == ItemKind.Corpse)
