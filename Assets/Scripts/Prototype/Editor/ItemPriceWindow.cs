@@ -57,7 +57,7 @@ public sealed class ItemPriceWindow : EditorWindow
         if (catalog == null) { catalog = EnsureCatalog(); return; }
         EditorGUILayout.LabelField("아이템 구매 / 판매 가격 및 성장 시간", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox("성장 시간: 물주기 등 성장 시작 조건을 만족한 뒤 다 자라기까지 걸리는 초입니다.\n5를 입력하면 5초, 10을 입력하면 10초입니다(최소 0.1초). 세대와 관계없이 입력한 시간을 사용합니다.\n성장 중 수정하면 현재 진행률을 유지하며 남은 진행에 적용됩니다. 삽은 삽 머리 행에서 조절합니다.", MessageType.None);
-        EditorGUILayout.HelpBox("구매 가격은 향후 상점용 데이터입니다. 현재 바닥 아이템 줍기는 무료입니다.\n판매 가격은 NPC 환전에 즉시 적용됩니다. 시체도 판매할 수 있습니다.\n판매액 = 기본 판매가 × 세대 배율^세대 × 상인 배율. 0골드도 판매됩니다.", MessageType.Info);
+        EditorGUILayout.HelpBox("구매 가격은 즉시 재입고되는 진열 아이템을 E로 구매할 때 적용됩니다. 골드가 부족하면 구매할 수 없습니다. 일반 드롭과 잡초 줍기는 무료입니다.\n판매 가격은 NPC 환전에 즉시 적용됩니다. 시체도 판매할 수 있습니다.\n판매액 = 기본 판매가 × 세대 배율^세대 × 상인 배율. 0골드도 판매됩니다.", MessageType.Info);
         search = EditorGUILayout.TextField("검색", search);
         if (GUILayout.Button("아이템 목록 새로 확인 (가격 유지)")) catalog = EnsureCatalog();
         Undo.RecordObject(catalog, "Edit item prices");

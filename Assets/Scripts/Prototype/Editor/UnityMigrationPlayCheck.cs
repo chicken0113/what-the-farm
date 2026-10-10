@@ -184,6 +184,10 @@ public static class UnityMigrationPlayCheck
                     var soil=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     Check(Mathf.Abs(soil.GetComponent<Collider>().bounds.size.x-100)<.1f,"100m ground missing");
                     Check(!UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Any(t=>t.name.StartsWith("Fence_Block")),"Old fences remain");
+                    var shop=world.GetComponentsInChildren<FarmItem>().Where(i=>i.IsShopStock).ToArray();
+                    Check(shop.Length==3 && shop.All(i=>i.Kind!=ItemKind.Curio) && shop.GroupBy(i=>i.PriceId).All(g=>g.Count()==1),
+                        "Shop must contain one shovel head, one watering can and one seed, without stone stock");
+                    world.AddGold(1000); // Integration farming checks now buy the restocking shop items.
                     var stock=world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool);
                     var stockPosition=stock.transform.position;
                     Aim(stock.GetComponent<Collider>().bounds.center); player.Interact(); Check(player.HeldItem==stock,"Ray pickup failed");

@@ -289,6 +289,9 @@ namespace WhatTheFarm.Prototype
                     return;
                 }
 
+                bool buying = groundItem.IsShopStock;
+                int purchasePrice = buying ? groundItem.PurchasePrice : 0;
+                if (!world.TryPurchaseStock(groundItem)) return;
                 foreach (Collider collider in groundItem.GetComponentsInChildren<Collider>(true))
                     collider.enabled = false;
                 Rigidbody rb = groundItem.GetComponent<Rigidbody>();
@@ -299,7 +302,9 @@ namespace WhatTheFarm.Prototype
                 inventory[slot] = groundItem;
                 RefreshHeldItem();
                 actions?.PlayPickup();
-                world.SetMessage($"Picked up {groundItem.DisplayName} in slot {slot + 1}.");
+                world.SetMessage(buying
+                    ? $"Bought {groundItem.DisplayName} for {purchasePrice} gold in slot {slot + 1}."
+                    : $"Picked up {groundItem.DisplayName} in slot {slot + 1}.");
             }
             else if (TryLookSoil(out RaycastHit soilHit))
             {

@@ -106,6 +106,7 @@ namespace WhatTheFarm.Prototype
         public bool IsSold { get; private set; }
 
         private System.Action refillStock;
+        public bool IsShopStock => refillStock != null;
         private readonly System.Collections.Generic.List<Material> ownedMaterials = new();
         public void OwnMaterials(System.Collections.Generic.IEnumerable<Material> materials) => ownedMaterials.AddRange(materials);
         private void OnDestroy()

@@ -67,6 +67,19 @@ namespace WhatTheFarm.Prototype
         private float dialogueUntil;
 
         public void AddGold(int amount) { if (amount > 0) Gold += amount; }
+        public bool TryPurchaseStock(FarmItem item)
+        {
+            if (item == null) return false;
+            if (!item.IsShopStock) return true;
+            int price = item.PurchasePrice;
+            if (Gold < price)
+            {
+                SetMessage($"Not enough gold. {item.DisplayName} costs {price} gold (you have {Gold}).");
+                return false;
+            }
+            Gold -= price;
+            return true;
+        }
         public void ShowDialogue(string speaker, string text, float seconds)
         {
             dialogueSpeaker = speaker;
@@ -78,7 +91,7 @@ namespace WhatTheFarm.Prototype
         public void SetSpawnPoint(Transform spawnPoint) => playerSpawnPoint = spawnPoint;
         private LocalFarmer player;
         private float messageUntil;
-        private string message = "Pick up the hoe and till the soil first.";
+        private string message = "Sell weeds to earn gold, then buy supplies with E.";
         private Material soilMaterial;
         private Material dryPlotMaterial;
         private Material wetPlotMaterial;
@@ -114,9 +127,6 @@ namespace WhatTheFarm.Prototype
             CreateRestockingItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
             CreateRestockingItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
             CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(0f, 0.45f, -7f));
-            CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(1f, 0.45f, -7f));
-            CreateRestockingItem(ItemKind.Seed, 0, 10, new Vector3(2f, 0.45f, -7f));
-            CreateRestockingItem(ItemKind.Curio, 0, 6, new Vector3(3.2f, 0.55f, -7f));
         }
 
         private void EnsureMaterials()
@@ -226,7 +236,11 @@ namespace WhatTheFarm.Prototype
             item.SetStockRefill(() =>
             {
                 if (this != null)
-                    CreateRestockingItem(kind, generation, baseValue, position).SetGrowthProfile(item.GrowthProfile);
+                {
+                    var replacement = CreateRestockingItem(kind, generation, baseValue, position);
+                    replacement.SetGrowthProfile(item.GrowthProfile);
+                    replacement.SetPriceId(item.CustomPriceId);
+                }
             });
             return item;
         }
@@ -421,7 +435,7 @@ namespace WhatTheFarm.Prototype
 
             GUI.Box(new Rect(14f, 14f, 490f, 157f), "WHAT THE FARM - prototype");
             GUI.Label(new Rect(28f, 42f, 420f, 22f), "WASD move  |  Mouse look  |  Shift sprint");
-            GUI.Label(new Rect(28f, 64f, 460f, 22f), "E pick up / plant / talk  |  Q throw selected item");
+            GUI.Label(new Rect(28f, 64f, 460f, 22f), "E buy / pick up / plant / talk  |  Q throw selected item");
             GUI.Label(new Rect(28f, 86f, 460f, 22f), "1-9 / wheel: select hotbar  |  Tab: inventory");
             GUI.Label(new Rect(28f, 108f, 460f, 22f), "Left click: hoe to till / can to water / hit a crop");
             GUI.Label(new Rect(28f, 130f, 460f, 22f), "Esc release mouse  |  Click Game view to resume");
@@ -458,7 +472,8 @@ namespace WhatTheFarm.Prototype
                 FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
                 FarmStageExit exit = hit.collider.GetComponentInParent<FarmStageExit>();
                 if (item != null)
-                    target = item.Kind == ItemKind.Corpse ? $"{item.DisplayName} - E pick up / plant to recover health" : $"{item.DisplayName} - {item.Value} gold";
+                    target = item.IsShopStock ? $"{item.DisplayName} - E buy: {item.PurchasePrice} gold" :
+                        item.Kind == ItemKind.Corpse ? $"{item.DisplayName} - E pick up / plant to recover health" : $"{item.DisplayName} - {item.Value} gold";
                 else if (corpse != null && corpse.State == PlantableCorpse.BodyState.Planted)
                     target = $"{corpse.DisplayName} - Recovering {corpse.Health:0}/{corpse.MaxHealth:0} HP";
                 else if (crop != null)
