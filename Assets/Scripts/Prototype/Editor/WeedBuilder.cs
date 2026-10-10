@@ -12,8 +12,10 @@ public static class WeedBuilder
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         if (prefab == null)
         {
-            var material = new Material(AssetDatabase.LoadAssetAtPath<Material>("Assets/Settings/PrototypeBaseMaterial.mat"));
-            material.color = new Color(.25f, .52f, .08f);
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) throw new InvalidOperationException("URP Lit shader is missing. Restore URP before creating weed assets.");
+            var material = new Material(shader);
+            material.SetColor("_BaseColor", new Color(.25f, .52f, .08f));
             AssetDatabase.CreateAsset(material, "Assets/Resources/WeedGreen.mat");
             var root = new GameObject("Weed");
             for (int i = -2; i <= 2; i++)

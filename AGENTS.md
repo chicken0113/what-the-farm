@@ -30,3 +30,5 @@
 - ItemPriceCatalog entries store growthSeconds (default 4, minimum 0.1), an exact total active growth duration independent of generation. FleeingCrop uses the planting source price ID, not harvest ID; edits preserve current progress and affect remaining growth. Keep water gating and final size bonuses. Unknown IDs fall back to profile duration/generation rules. Adjust shovel time using shovel-head row; weeds do not grow and corpse healing is independent.
 
 - First-stage wild weeds spawn only within the merchant peaceful boundary from FarmFirstStage, with a 0.5m inset. Use shared IsInsidePeacefulArea and clip sampled ground bounds to this region. Do not apply this first-stage encounter boundary to later stages. Preserve user edits to ItemPrices.asset.
+
+- Inventory/hotbar labels must use FarmItem.DisplayName, the same name as pickup/throw/sale messages; do not duplicate kind-to-name switches. Wrap long names in slots. WeedGreen must reference URP Lit and set green _BaseColor; never create weed materials from a null-shader base material.

@@ -420,6 +420,8 @@ namespace WhatTheFarm.Prototype
                 new Rect(0f, 0f, columns * (slotSize + gap) + 8f,
                     rows * (slotSize + gap) + 8f));
 
+            var slotStyle = new GUIStyle(GUI.skin.button) { wordWrap = true, fontSize = 11 };
+
             for (int index = 0; index < inventory.Length; index++)
             {
                 int column = index % columns;
@@ -430,7 +432,7 @@ namespace WhatTheFarm.Prototype
                 GUI.backgroundColor = index == movingSlot ? new Color(1f, 0.8f, 0.3f) :
                     index == selectedSlot ? new Color(0.5f, 0.85f, 1f) : Color.white;
                 string prefix = index < HotbarSlots ? $"{index + 1}" : $"#{index + 1}";
-                if (GUI.Button(rect, $"{prefix}\n{SlotLabel(inventory[index])}"))
+                if (GUI.Button(rect, $"{prefix}\n{SlotLabel(inventory[index])}", slotStyle))
                     ClickInventorySlot(index);
                 GUI.backgroundColor = original;
             }
@@ -441,12 +443,13 @@ namespace WhatTheFarm.Prototype
         {
             float slotSize = Mathf.Min(70f, (Screen.width - 20f) / HotbarSlots);
             float startX = (Screen.width - HotbarSlots * slotSize) * 0.5f;
+            var slotStyle = new GUIStyle(GUI.skin.box) { wordWrap = true, fontSize = 11 };
             for (int index = 0; index < HotbarSlots; index++)
             {
                 Color original = GUI.backgroundColor;
                 GUI.backgroundColor = index == selectedSlot ? new Color(0.5f, 0.85f, 1f) : Color.white;
                 GUI.Box(new Rect(startX + index * slotSize, Screen.height - slotSize - 10f,
-                    slotSize - 3f, slotSize), $"{index + 1}\n{SlotLabel(inventory[index])}");
+                    slotSize - 3f, slotSize), $"{index + 1}\n{SlotLabel(inventory[index])}", slotStyle);
                 GUI.backgroundColor = original;
             }
         }
@@ -480,15 +483,7 @@ namespace WhatTheFarm.Prototype
             if (item == null)
                 return "Empty";
 
-            string name = item.Kind switch
-            {
-                ItemKind.Seed => "Seed",
-                ItemKind.Produce => "Crop",
-                ItemKind.Tool => item.CanUseTool ? "Shovel" : "Head",
-                ItemKind.WateringCan => "Can",
-                _ => "Stone"
-            };
-            return item.Generation > 0 ? $"{name} +{item.Generation}" : name;
+            return item.DisplayName;
         }
     }
 }
