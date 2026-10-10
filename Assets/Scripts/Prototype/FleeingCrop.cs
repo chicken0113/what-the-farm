@@ -26,6 +26,7 @@ namespace WhatTheFarm.Prototype
         private GrowableTool growableTool;
         private float groundHeight;
         private float combatClock, nextAttack, attackRemaining = -1;
+        private float attackRecoveryRemaining;
         [SerializeField] private PlantGrowthProfile growthProfile;
         [SerializeField] private float growthRatePercent = 100;
         public PlantGrowthProfile GrowthProfile => growthProfile;
@@ -127,15 +128,24 @@ namespace WhatTheFarm.Prototype
             Vector3 toward=player.transform.position-transform.position; toward.y=0;
             Quaternion facing=toward.sqrMagnitude>.001f ? Quaternion.LookRotation(toward) : Quaternion.Euler(0,transform.eulerAngles.y,0);
             if(player.IsDead || toward.magnitude>growableTool.AggroRange)
-            { attackRemaining=-1; transform.rotation=facing; return; }
+            { attackRemaining=-1; attackRecoveryRemaining=0; transform.rotation=facing; return; }
+            if(attackRecoveryRemaining>0)
+            {
+                attackRecoveryRemaining=Mathf.Max(0,attackRecoveryRemaining-elapsed);
+                float recover=1-attackRecoveryRemaining/growableTool.AttackRecovery;
+                transform.rotation=facing*Quaternion.Euler(Vector3.Lerp(new Vector3(55,65,-20),Vector3.zero,Mathf.SmoothStep(0,1,recover)));
+                if(attackRecoveryRemaining>0) return;
+            }
             if(attackRemaining>=0)
             {
                 attackRemaining-=elapsed;
                 float progress=1-Mathf.Clamp01(attackRemaining/growableTool.AttackWindup);
-                transform.rotation=facing*Quaternion.Euler(-35*Mathf.Sin(progress*Mathf.PI),0,0);
+                transform.rotation=facing*Quaternion.Euler(Vector3.Lerp(Vector3.zero,new Vector3(-30,-45,15),Mathf.SmoothStep(0,1,progress)));
                 if(attackRemaining<=0)
                 {
-                    attackRemaining=-1; nextAttack=combatClock+growableTool.AttackInterval; transform.rotation=facing;
+                    attackRemaining=-1; nextAttack=combatClock+growableTool.AttackInterval;
+                    attackRecoveryRemaining=growableTool.AttackRecovery;
+                    transform.rotation=facing*Quaternion.Euler(55,65,-20);
                     Physics.SyncTransforms();
                     if(toward.magnitude<=growableTool.AttackRange && ClearCombatPath(transform.position+Vector3.up*.4f,player.transform.position+Vector3.up*.75f,player))
                         player.ReceiveDamage(growableTool.AttackDamage);

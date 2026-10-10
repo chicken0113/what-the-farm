@@ -124,6 +124,7 @@ MonoBehaviour:
   attackDamage: 10
   attackInterval: 1.2
   attackWindup: 0.3
+  attackRecovery: 0.22
 --- !u!1001 &6411775191058914074
 PrefabInstance:
   m_ObjectHideFlags: 0

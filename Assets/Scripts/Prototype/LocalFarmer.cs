@@ -30,7 +30,19 @@ namespace WhatTheFarm.Prototype
         public Camera View => view;
         public FarmActionAnimation Actions => actions;
         public FarmItem[] CaptureInventory() => (FarmItem[])inventory.Clone();
-        public void SetActions(FarmActionAnimation model) { actions = model; RefreshHeldItem(); }
+        public void SetActions(FarmActionAnimation model)
+        {
+            if(actions!=null)
+            {
+                actions.Stop();
+                if(emptyHand!=null) emptyHand.transform.SetParent(view.transform,true);
+                if(inventory!=null) foreach(var item in inventory) if(item!=null) item.transform.SetParent(view.transform,true);
+                if(actions!=model) Destroy(actions.gameObject);
+            }
+            actions=model;
+            if(emptyHand!=null && actions!=null) emptyHand.transform.SetParent(actions.transform,true);
+            RefreshHeldItem();
+        }
         public void RestoreInventory(FarmItem[] items, int selected)
         {
             inventory = new FarmItem[Mathf.Max(inventory.Length, items.Length)];
@@ -93,6 +105,7 @@ namespace WhatTheFarm.Prototype
             ActorId = System.Guid.NewGuid().ToString("N");
             inventory = new FarmItem[Mathf.Max(1, slotCount)];
             emptyHand = FarmerEmptyHand.Create(view.transform);
+            SetActions(FarmActionAnimation.Create(view.transform));
             LockCursor();
         }
 
@@ -191,6 +204,7 @@ namespace WhatTheFarm.Prototype
 
         private void RefreshHeldItem()
         {
+            actions?.Stop();
             if (emptyHand != null) emptyHand.SetVisible(HeldItem == null);
             for (int index = 0; index < inventory.Length; index++)
             {
@@ -298,7 +312,7 @@ namespace WhatTheFarm.Prototype
                     inventory[selectedSlot] = null;
                     if (item.GetComponent<PlantableCorpse>() == null) Destroy(item.gameObject);
                     RefreshHeldItem();
-                    actions?.PlaySwing();
+                    actions?.PlayPlant();
                 }
             }
             else
@@ -328,6 +342,7 @@ namespace WhatTheFarm.Prototype
             }
             world.SetMessage($"Threw {item.DisplayName}. Throw to the buyer to sell it.");
             RefreshHeldItem();
+            actions?.PlayUse();
         }
 
         public void Swing()
@@ -336,7 +351,7 @@ namespace WhatTheFarm.Prototype
             if (Time.time < nextSwingTime)
                 return;
             nextSwingTime = Time.time + 0.42f;
-            actions?.PlaySwing();
+            actions?.PlaySwing(HeldItem != null);
 
             if (!TryLook(out RaycastHit hit))
                 return;
@@ -351,6 +366,7 @@ namespace WhatTheFarm.Prototype
             {
                 if (item != null && item.Kind == ItemKind.WateringCan && !crop.IsMature)
                 {
+                    actions?.PlayUse();
                     if (crop.IsPlanted) world.TryWater(crop.Plot.Surface, crop.transform.position, item);
                     return;
                 }
@@ -368,7 +384,10 @@ namespace WhatTheFarm.Prototype
                 if (item == null || item.Kind == ItemKind.Tool)
                     world.TryTill(soil, hit.point, item);
                 else if (item.Kind == ItemKind.WateringCan)
+                {
+                    actions?.PlayUse();
                     world.TryWater(soil, hit.point, item);
+                }
             }
         }
 

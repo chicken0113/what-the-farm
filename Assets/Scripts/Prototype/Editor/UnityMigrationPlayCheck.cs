@@ -40,6 +40,17 @@ public static class UnityMigrationPlayCheck
     static float returnStarted;
     static Vector3 revivalScale;
     static float shotWaitStarted;
+    static void CheckAction(FarmActionAnimation.Action expected,Transform moving)
+    {
+        var actions=player.Actions;
+        Check(actions!=null && actions.CurrentAction==expected,"Player action was not triggered: "+expected);
+        Vector3 start=moving.position; var cameraPosition=player.View.transform.position; var cameraRotation=player.View.transform.rotation;
+        actions.AdvanceAnimation(.16f);
+        Check(Vector3.Distance(moving.position,start)>.015f,"Action did not move the visible hand/item: "+expected);
+        Check(player.View.transform.position==cameraPosition && player.View.transform.rotation==cameraRotation,"Animation moved aim camera");
+        actions.AdvanceAnimation(1);
+        Check(!actions.IsPlaying && Vector3.Distance(moving.position,start)<.001f,"Action did not return to idle pose");
+    }
     static bool TillForRecovery(SoilSurface soil,Vector3 point)
     {
         var ready=world.CreateItem(ItemKind.Tool,0,10,Vector3.up*10); ready.MarkPlanted();
@@ -156,6 +167,7 @@ public static class UnityMigrationPlayCheck
                     Check(viewport.x>0 && viewport.x<1 && viewport.y>0 && viewport.y<1 && viewport.z>player.View.nearClipPlane,"Hand outside camera view");
                     CaptureHandPreview(player.View);
                     Aim(new Vector3(.8f,0,-8.5f)); player.Swing();
+                    CheckAction(FarmActionAnimation.Action.Swing,player.EmptyHand.transform);
                     var bareSoil=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     var barePlot=bareSoil.FindPlot(new Vector3(.8f,0,-8.5f));
                     Check(barePlot!=null && Mathf.Abs(barePlot.Radius-.08f)<.001f,"Bare hand did not create a fist-sized patch at aim point");
@@ -175,6 +187,7 @@ public static class UnityMigrationPlayCheck
                     var stock=world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool);
                     var stockPosition=stock.transform.position;
                     Aim(stock.GetComponent<Collider>().bounds.center); player.Interact(); Check(player.HeldItem==stock,"Ray pickup failed");
+                    CheckAction(FarmActionAnimation.Action.Pickup,stock.transform);
                     Check(!player.EmptyHand.IsVisible,"Hand visible while holding an item");
                     player.SelectSlot(11); Check(player.EmptyHand.IsVisible,"Empty slot did not show hand");
                     player.SelectSlot(0); Check(!player.EmptyHand.IsVisible,"Item slot did not hide hand");
@@ -200,6 +213,7 @@ public static class UnityMigrationPlayCheck
                     Check(world.TryTill(soil,largerPoint) && soil.FindPlot(largerPoint).Radius>.1f,"Repeated bare-hand till did not enlarge empty soil for bigger blade");
                     Aim(largerPoint); player.Interact();
                     Check(player.HeldItem==null && player.EmptyHand.IsVisible,"Planting did not restore empty hand");
+                    CheckAction(FarmActionAnimation.Action.Plant,player.EmptyHand.transform);
                     var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single();
                     Check(plantedExtra.GetComponent<GrowableTool>().IsComplete && plantedExtra.GetComponentInChildren<MeshFilter>().sharedMesh.vertexCount>headVertices,"Planting did not reveal complete shovel");
                     var shovelScale=plantedExtra.transform.lossyScale; float buriedY=plantedExtra.transform.position.y;
@@ -221,7 +235,9 @@ public static class UnityMigrationPlayCheck
                     Move(plantedExtra.transform.position+Vector3.right*.8f+Vector3.up*.1f);
                     health=player.Health; plantedExtra.TickCombat(.01f);
                     Check(player.Health==health,"Shovel attack had no windup");
-                    plantedExtra.TickCombat(.4f); Check(player.Health==health-10,"Mature shovel melee did not damage player");
+                    var attackFacing=plantedExtra.transform.rotation;
+                    plantedExtra.TickCombat(.12f); Check(Quaternion.Angle(attackFacing,plantedExtra.transform.rotation)>5 && player.Health==health,"Shovel did not wind its body back before attack");
+                    plantedExtra.TickCombat(.28f); Check(player.Health==health-10 && Quaternion.Angle(attackFacing,plantedExtra.transform.rotation)>30,"Mature shovel melee/sweeping body motion failed");
                     health=player.Health; plantedExtra.TickCombat(.1f); Check(player.Health==health,"Shovel ignored attack cooldown");
                     var meleeCover=GameObject.CreatePrimitive(PrimitiveType.Cube);
                     meleeCover.transform.position=(plantedExtra.transform.position+player.transform.position)*.5f+Vector3.up*.6f;
@@ -253,6 +269,8 @@ public static class UnityMigrationPlayCheck
                     break;
                 case 2:
                     var can=world.CreateItem(ItemKind.WateringCan,0,14,new Vector3(0,5,0));
+                    Hold(can,4); player.Actions.PlayUse(); CheckAction(FarmActionAnimation.Action.Use,can.transform);
+                    player.Actions.PlaySwing(); CheckAction(FarmActionAnimation.Action.Swing,can.transform);
                     Check(world.TryWater(surface,plantedPoint,can)==1,"Watering failed"); world.TryWater(surface,plantedPoint,can); crop.Grow(20);
                     Check(crop.IsMature && !home.IsOccupied,"Growth did not free plot");
                     scale=crop.transform.lossyScale; var model=crop.gameObject; crop.TakeHit(1000); grownItem=model.GetComponent<FarmItem>();
@@ -456,7 +474,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: doubled shovel size, repeated bare-hand patch expansion, mature shovel pursues/melee attacks with windup/cooldown, cover blocks and retreat dodges, harvest stops attacks; shovel handle buried below exposed blade, dry shovel stationary, gradual upward translation at fixed scale, full emergence, colours preserved; 3x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: first-person punch/item swing/pickup/use/plant poses move and return without moving aim camera; mature shovel windup and body sweep; doubled shovel size, repeated bare-hand patch expansion, mature shovel pursues/melee attacks with windup/cooldown, cover blocks and retreat dodges, harvest stops attacks; shovel handle buried below exposed blade, dry shovel stationary, gradual upward translation at fixed scale, full emergence, colours preserved; 3x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

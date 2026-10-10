@@ -14,12 +14,14 @@ namespace WhatTheFarm.Prototype
         [SerializeField, Min(1)] private float attackDamage = 10;
         [SerializeField, Min(.1f)] private float attackInterval = 1.2f;
         [SerializeField, Min(.05f)] private float attackWindup = .3f;
+        [SerializeField, Min(.05f)] private float attackRecovery = .22f;
         public float AggroRange => aggroRange;
         public float ChaseSpeed => chaseSpeed;
         public float AttackRange => attackRange;
         public float AttackDamage => attackDamage;
         public float AttackInterval => attackInterval;
         public float AttackWindup => attackWindup;
+        public float AttackRecovery => attackRecovery;
         public bool IsComplete => planted;
         public Mesh CompleteMesh => completeMesh;
         public void Configure(MeshFilter visual, Mesh head, Mesh complete)
