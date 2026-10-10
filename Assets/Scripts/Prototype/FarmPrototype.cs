@@ -274,6 +274,8 @@ namespace WhatTheFarm.Prototype
         public bool TryTill(SoilSurface soil, Vector3 point, FarmItem tool = null)
         {
             if (soil == null) return false;
+            if (tool != null && !tool.CanUseTool)
+            { SetMessage("Plant this shovel head, water it, and harvest the grown shovel before using it."); return false; }
             if (soil.Till(point, TillingRadiusFor(tool), dryPlotMaterial, wetPlotMaterial) == null)
             {
                 SetMessage("This ground is already tilled.");
@@ -321,6 +323,7 @@ namespace WhatTheFarm.Prototype
             plant.transform.position = position;
             plant.transform.SetParent(transform, true);
             plant.SetActive(true);
+            plant.GetComponent<GrowableTool>()?.ShowComplete();
             foreach (Collider body in plant.GetComponentsInChildren<Collider>(true))
                 body.enabled = true;
             foreach (Rigidbody body in plant.GetComponentsInChildren<Rigidbody>(true))

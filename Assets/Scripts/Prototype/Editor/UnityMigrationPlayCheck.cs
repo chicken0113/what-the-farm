@@ -40,6 +40,11 @@ public static class UnityMigrationPlayCheck
     static float returnStarted;
     static Vector3 revivalScale;
     static float shotWaitStarted;
+    static bool TillForRecovery(SoilSurface soil,Vector3 point)
+    {
+        var ready=world.CreateItem(ItemKind.Tool,0,10,Vector3.up*10); ready.MarkPlanted();
+        bool result=world.TryTill(soil,point,ready); UnityEngine.Object.Destroy(ready.gameObject); return result;
+    }
     static void CheckPlantFootprint(SoilSurface soil)
     {
         var center=new Vector3(30,0,20);
@@ -173,21 +178,34 @@ public static class UnityMigrationPlayCheck
                     Check(!player.EmptyHand.IsVisible,"Hand visible while holding an item");
                     player.SelectSlot(11); Check(player.EmptyHand.IsVisible,"Empty slot did not show hand");
                     player.SelectSlot(0); Check(!player.EmptyHand.IsVisible,"Item slot did not hide hand");
-                    player.SelectSlot(1); Aim(stockPosition+Vector3.up*.1f); player.Interact(); Check(player.HeldItem!=null && player.HeldItem.Kind==ItemKind.Tool,"Immediate restock pickup failed");
+                    var newStock=world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool && i.transform.parent==world.transform);
+                    player.SelectSlot(1); Physics.SyncTransforms(); Aim(newStock.GetComponent<Collider>().bounds.center);
+                    bool stockRay=player.TryLook(out RaycastHit stockHit); player.Interact();
+                    Check(player.HeldItem!=null && player.HeldItem.Kind==ItemKind.Tool,"Immediate restock pickup failed: centre="+newStock.GetComponent<Collider>().bounds.center+" player="+player.transform.position+" ray="+stockRay+" hit="+(stockRay?stockHit.collider.name:"none"));
                     var refill=world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool && i.transform.parent==world.transform);
                     Check(Vector3.Distance(refill.transform.position,stockPosition)<.001f,"Restock position drift");
+                    Check(!refill.CanUseTool && !refill.GetComponent<GrowableTool>().IsComplete,"Restock supplied a complete usable shovel");
                     Check(Physics.GetIgnoreLayerCollision(8,9) && Physics.GetIgnoreLayerCollision(8,8),"Loose item collision");
                     Check(stock.GetComponentsInChildren<Renderer>(true).Max(r=>r.bounds.size.magnitude)<1,"Tool not reduced");
+                    Check(!player.HeldItem.CanUseTool && player.HeldItem.GetComponent<GrowableTool>()!=null,"Purchased shovel should be an unusable head");
+                    Check(!world.TryTill(soil,new Vector3(2.8f,0,-8.5f),player.HeldItem) && soil.FindPlot(new Vector3(2.8f,0,-8.5f))==null,"Ungrown shovel tilled soil");
+                    int headVertices=player.HeldItem.GetComponentInChildren<MeshFilter>().sharedMesh.vertexCount;
                     var heldScale=player.HeldItem.transform.localScale;
                     player.HeldItem.transform.localScale*=10;
                     Aim(new Vector3(.8f,0,-8.5f)); player.Interact();
                     Check(player.HeldItem!=null && !player.HeldItem.HasBeenPlanted,"Oversized hoe planted in fist-sized soil or rejection lost inventory");
                     player.HeldItem.transform.localScale=heldScale;
                     var largerPoint=new Vector3(1.3f,0,-8.5f);
-                    Check(world.TryTill(soil,largerPoint,player.HeldItem),"Larger planting area till failed");
+                    Check(world.TryTill(soil,largerPoint),"Bare hand planting area till failed");
                     Aim(largerPoint); player.Interact();
                     Check(player.HeldItem==null && player.EmptyHand.IsVisible,"Planting did not restore empty hand");
-                    var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single(); UnityEngine.Object.Destroy(plantedExtra.gameObject);
+                    var plantedExtra=world.GetComponentsInChildren<FleeingCrop>().Single();
+                    Check(plantedExtra.GetComponent<GrowableTool>().IsComplete && plantedExtra.GetComponentInChildren<MeshFilter>().sharedMesh.vertexCount>headVertices,"Planting did not reveal complete shovel");
+                    plantedExtra.Grow(20); Check(!plantedExtra.IsMature,"Unwatered shovel grew");
+                    plantedExtra.Plot.Water(50); plantedExtra.Grow(20); plantedExtra.TakeHit(100);
+                    var readyShovel=plantedExtra.GetComponents<FarmItem>().Last(i=>i.HasBeenPlanted);
+                    Check(readyShovel!=null && readyShovel.CanUseTool && readyShovel.HasBeenPlanted && readyShovel.GetComponent<GrowableTool>().IsComplete,"Harvested shovel not usable/full model");
+                    Hold(readyShovel,0); UnityEngine.Object.Destroy(stock.gameObject);
                     CheckPlantFootprint(soil);
                     player.SelectSlot(0); Aim(new Vector3(-1,0,-8.5f)); player.Swing();
                     var plot=soil.FindPlot(new Vector3(-1,0,-8.5f)); Check(plot!=null,"Hoe till action failed");
@@ -345,7 +363,7 @@ public static class UnityMigrationPlayCheck
                     surface=UnityEngine.Object.FindFirstObjectByType<SoilSurface>();
                     var revivePoint=new Vector3(20,0,-15);
                     Check(!world.TryPlant(bodyItem,null,revivePoint),"Corpse planted on untilled ground");
-                    Check(world.TryTill(surface,revivePoint,world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool)),"Revival till failed"); revivalPlot=surface.FindPlot(revivePoint);
+                    Check(TillForRecovery(surface,revivePoint),"Revival till failed"); revivalPlot=surface.FindPlot(revivePoint);
                     Move(revivePoint+Vector3.back*2+Vector3.up*.1f); Aim(revivePoint); player.Interact();
                     Check(player.HeldItem==null && corpse!=null && revivalPlot.IsOccupied,"Planting consumed/destroyed original NPC body");
                     Check(Vector3.Dot(corpse.transform.up,Vector3.up)>.999f,"Planted NPC did not stand upright");
@@ -390,7 +408,7 @@ public static class UnityMigrationPlayCheck
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerCenter-helperCamera.transform.position); teammate.Interact();
                     Check(teammate.HeldItem!=null && teammate.HeldItem.GetComponent<PlantableCorpse>()==player.DeathBody,"Teammate could not pick up player body");
                     revivalScale=player.DeathBody.transform.lossyScale;
-                    var playerPoint=new Vector3(23,0,-15); Check(world.TryTill(surface,playerPoint,world.GetComponentsInChildren<FarmItem>().First(i=>i.Kind==ItemKind.Tool)),"Player revival till failed");
+                    var playerPoint=new Vector3(23,0,-15); Check(TillForRecovery(surface,playerPoint),"Player revival till failed");
                     revivalPlot=surface.FindPlot(playerPoint);
                     helper.transform.position=playerPoint+Vector3.back*2+Vector3.up*.1f;
                     helperCamera.transform.rotation=Quaternion.LookRotation(playerPoint-helperCamera.transform.position); Physics.SyncTransforms(); teammate.Interact();
@@ -408,7 +426,7 @@ public static class UnityMigrationPlayCheck
                 case 13:
                     Check(corpse.GetComponent<FarmItem>()!=null && !corpse.GetComponent<FarmItem>().HasBeenPlanted,"Second death did not create fresh plantable body");
                     UnityEngine.Object.Destroy(teammate.gameObject); world.SetPlayerRevivalRequiresPlanting(false);
-                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
+                    File.WriteAllText(Result,"PLAYCHECK_SUCCESS: 1.5x growable shovel stock is head-only and unusable, restocks as head, planting reveals full mesh, watering required, harvested shovel usable with full mesh; footprint fit, oversized/edge rejection preserves item, held rotation ignored, tall item accepted at mouse position, NPC/player body fit; finite-speed bullets, no instant damage, stationary hit, 7m/s sideways sprint dodges, fixed firing direction, initial and newly inserted cover block shots, bullets expire; merchant gun hidden on player death/NPC death/peaceful revival; NPC/player burial, health recovery and owner revival; NPC walks home/trades; farming, inventory, combat and travel.");
                     Debug.Log("UNITY_MIGRATION_PLAYCHECK_SUCCESS"); EditorApplication.isPlaying=false; return;
             }
             phase++;

@@ -22,6 +22,7 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private bool hasBeenPlanted;
         private void Awake() => SetLooseCollision();
         public bool HasBeenPlanted => hasBeenPlanted;
+        public bool CanUseTool => GetComponent<GrowableTool>() == null || hasBeenPlanted;
         // Measure the visible model in its planted orientation, not its pose in the player's hand.
         // Bounds are offsets from the planting point, so off-centre model pivots are preserved.
         public Bounds PlantingBounds(Quaternion rotation)
@@ -58,7 +59,7 @@ namespace WhatTheFarm.Prototype
             }
             return result;
         }
-        public void MarkPlanted() => hasBeenPlanted = true;
+        public void MarkPlanted() { hasBeenPlanted = true; GetComponent<GrowableTool>()?.ShowComplete(); }
         public void SetLooseCollision()
         {
             foreach (Transform part in GetComponentsInChildren<Transform>(true)) part.gameObject.layer = 8;
@@ -136,7 +137,7 @@ namespace WhatTheFarm.Prototype
                 {
                     ItemKind.Seed => "Seed",
                     ItemKind.Produce => "Crop",
-                    ItemKind.Tool => "Hoe",
+                    ItemKind.Tool => GetComponent<GrowableTool>() != null ? (CanUseTool ? "Shovel" : "Shovel Head") : "Hoe",
                     ItemKind.WateringCan => "Watering Can",
                     _ => "Stone"
                 };

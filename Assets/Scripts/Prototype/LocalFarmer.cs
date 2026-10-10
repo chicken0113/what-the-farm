@@ -342,6 +342,8 @@ namespace WhatTheFarm.Prototype
                 return;
 
             FarmItem item = HeldItem;
+            if (item != null && item.Kind == ItemKind.Tool && !item.CanUseTool)
+            { world.SetMessage("This shovel head needs planting, watering and harvesting before use."); return; }
             FarmGuardian guardian = hit.collider.GetComponentInParent<FarmGuardian>();
             if (guardian != null && !guardian.IsDefeated) { guardian.TakeHit(item != null && item.Kind == ItemKind.Tool ? 2*item.SizeMultiplier : 1); return; }
             FleeingCrop crop = hit.collider.GetComponentInParent<FleeingCrop>();
@@ -463,7 +465,7 @@ namespace WhatTheFarm.Prototype
             {
                 ItemKind.Seed => "Seed",
                 ItemKind.Produce => "Crop",
-                ItemKind.Tool => "Hoe",
+                ItemKind.Tool => item.CanUseTool ? "Shovel" : "Head",
                 ItemKind.WateringCan => "Can",
                 _ => "Stone"
             };

@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2469082489411410254}
   - component: {fileID: 3631747676049326190}
   - component: {fileID: 4445318358028371183}
+  - component: {fileID: 2552592833006798924}
   m_Layer: 8
   m_Name: Hoe
   m_TagString: Untagged
@@ -29,7 +30,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6694431069070001664}
@@ -54,8 +55,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.013093843, y: 0.26999998, z: 0.059470728}
-  m_Center: {x: 0, y: 0.13499999, z: 0}
+  m_Size: {x: 0.013093843, y: 0.09327829, z: 0.059470713}
+  m_Center: {x: 0, y: 0.22336084, z: -0.000000020489097}
 --- !u!54 &3631747676049326190
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -101,6 +102,22 @@ MonoBehaviour:
   growthProfile: {fileID: 0}
   originalScale: {x: 1, y: 1, z: 1}
   hasBeenPlanted: 0
+--- !u!114 &2552592833006798924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7966701980247132885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 267b5017add543858c2a0405a777e7ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WhatTheFarm.Prototype.GrowableTool
+  model: {fileID: 7730637684557646245}
+  headMesh: {fileID: 4300000, guid: d97ba7cba599a634c9f4932777f6a6e2, type: 2}
+  completeMesh: {fileID: 5544521043295601214, guid: 9cdba607a9080054f96137a5b6b200a5, type: 3}
+  planted: 0
 --- !u!1001 &6411775191058914074
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -173,6 +190,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: d17636ecc06771647a4cd0ac31e1d244, type: 2}
+    - target: {fileID: 3725476980371755711, guid: 9240eed90e8f6a145a384bf6eac91692, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: d97ba7cba599a634c9f4932777f6a6e2, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -181,5 +202,10 @@ PrefabInstance:
 --- !u!4 &6694431069070001664 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 296206259403300122, guid: 9240eed90e8f6a145a384bf6eac91692, type: 3}
+  m_PrefabInstance: {fileID: 6411775191058914074}
+  m_PrefabAsset: {fileID: 0}
+--- !u!33 &7730637684557646245 stripped
+MeshFilter:
+  m_CorrespondingSourceObject: {fileID: 3725476980371755711, guid: 9240eed90e8f6a145a384bf6eac91692, type: 3}
   m_PrefabInstance: {fileID: 6411775191058914074}
   m_PrefabAsset: {fileID: 0}
