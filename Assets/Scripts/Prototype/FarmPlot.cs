@@ -8,6 +8,7 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Material wetMaterial;
         [SerializeField] private Renderer visual;
         private readonly System.Collections.Generic.List<FleeingCrop> crops = new();
+        private FarmItem weed;
         private SoilSurface surface;
         [SerializeField, Range(0, 100)] private float waterAmount;
         private bool growthStarted;
@@ -15,7 +16,7 @@ namespace WhatTheFarm.Prototype
         public bool GrowthStarted => growthStarted;
         public SoilType SoilType => surface != null ? surface.Type : null;
         public SoilSurface Surface => surface;
-        public Vector3 PlantPosition => crops.Count > 0 && crops[0] != null ? crops[0].transform.position : transform.position;
+        public Vector3 PlantPosition => weed != null ? weed.transform.position : crops.Count > 0 && crops[0] != null ? crops[0].transform.position : transform.position;
         public float GetLight(Vector3 point, Transform plant = null) => surface != null ? surface.GetLight(point, plant) : 80;
         public void BindSurface(SoilSurface soil)
         {
@@ -26,7 +27,7 @@ namespace WhatTheFarm.Prototype
         }
         public bool IsTilled { get; private set; }
         public bool IsWatered => WaterAmount > 0;
-        public bool IsOccupied => crops.Count > 0;
+        public bool IsOccupied => crops.Count > 0 || weed != null;
         public bool Contains(FleeingCrop crop) => crops.Contains(crop);
         public bool ContainsPoint(Vector3 point) =>
             new Vector2(point.x - transform.position.x, point.z - transform.position.z).sqrMagnitude
@@ -72,6 +73,26 @@ namespace WhatTheFarm.Prototype
             crops.Add(plantedCrop);
             return true;
         }
+        public bool PlantWeed(FarmItem item)
+        {
+            if (!IsTilled || IsOccupied || item == null || item.Kind != ItemKind.Weed) return false;
+            weed = item;
+            item.MarkWeedPlanted(this);
+            return true;
+        }
+        public void ClearWeed(FarmItem item)
+        {
+            if (weed != item) return;
+            weed = null;
+            ResetEmptySoil();
+        }
+        private void ResetEmptySoil()
+        {
+            if (IsOccupied) return;
+            waterAmount = surface != null ? surface.InitialWaterAmount : 0;
+            growthStarted = waterAmount > 0;
+            RefreshWaterVisual();
+        }
 
         public void Water(float amount = 100)
         {
@@ -93,12 +114,7 @@ namespace WhatTheFarm.Prototype
             if (!crops.Remove(harvestedCrop))
                 return;
 
-            if (!IsOccupied)
-            {
-                waterAmount = surface != null ? surface.InitialWaterAmount : 0;
-                growthStarted = waterAmount > 0;
-                RefreshWaterVisual();
-            }
+            ResetEmptySoil();
         }
     }
 }

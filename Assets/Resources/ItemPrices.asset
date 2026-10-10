@@ -49,4 +49,8 @@ MonoBehaviour:
     label: "\uD50C\uB808\uC774\uC5B4 \uC2DC\uCCB4"
     purchasePrice: 50
     salePrice: 50
+  - id: weed
+    label: 잡초
+    purchasePrice: 0
+    salePrice: 3
   generationMultiplier: 1.8

@@ -37,6 +37,7 @@ public sealed class ItemPriceWindow : EditorWindow
         Add("curio", "돌 / 잡동사니", 6, 6);
         Add("npc-body", "NPC 시체", 50, 50);
         Add("player-body", "플레이어 시체", 50, 50);
+        Add("weed", "잡초", 0, 3);
         // Discover prefab kinds and assigned custom IDs without resetting existing prices.
         foreach (string guid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" }))
         {

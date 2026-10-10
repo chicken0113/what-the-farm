@@ -310,7 +310,7 @@ namespace WhatTheFarm.Prototype
                 if (world.TryPlant(item, plot, soilHit.point))
                 {
                     inventory[selectedSlot] = null;
-                    if (item.GetComponent<PlantableCorpse>() == null) Destroy(item.gameObject);
+                    if (item.GetComponent<PlantableCorpse>() == null && item.Kind != ItemKind.Weed) Destroy(item.gameObject);
                     RefreshHeldItem();
                     actions?.PlayPlant();
                 }

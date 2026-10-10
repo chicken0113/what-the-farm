@@ -18,6 +18,7 @@ namespace WhatTheFarm.Prototype
         public float PlayerPlantBuriedFraction => playerPlantBuriedFraction;
         public void SetPlayerRevivalRequiresPlanting(bool enabled) => playerRevivalRequiresPlanting = enabled;
         [SerializeField] private bool spawnSuppliesOnStart = true;
+        [SerializeField] private WeedSpawnSettings weedSpawning;
         public void SetSupplySpawning(bool enabled) => spawnSuppliesOnStart = enabled;
         public void SetArenaHalfSize(float size) => arenaHalfSize = size;
         [SerializeField] private bool buildArenaAtRuntime = true;
@@ -105,6 +106,8 @@ namespace WhatTheFarm.Prototype
                 CreateArena();
             CreatePlayer();
             FarmTravel.Restore(this, player);
+            var weeds = weedSpawning != null ? weedSpawning : Resources.Load<WeedSpawnSettings>("WeedSpawning");
+            if (weeds != null && weeds.enabled) gameObject.AddComponent<WeedSpawner>().Configure(this, weeds);
             if (!spawnSuppliesOnStart) return;
             CreateRestockingItem(ItemKind.Tool, 0, 16, new Vector3(-2.5f, 0.55f, -7f));
             CreateRestockingItem(ItemKind.WateringCan, 0, 14, new Vector3(-1.2f, 0.55f, -7f));
@@ -313,6 +316,24 @@ namespace WhatTheFarm.Prototype
                 return false;
             }
             if (corpse != null) return corpse.Plant(this, item, plot, position);
+            if (item.Kind == ItemKind.Weed)
+            {
+                if (!plot.PlantWeed(item)) return false;
+                Vector3 weedSize = item.transform.lossyScale;
+                item.transform.SetParent(null, true);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(item.gameObject, gameObject.scene);
+                item.transform.SetPositionAndRotation(position, Quaternion.identity);
+                item.transform.localScale = weedSize;
+                item.transform.SetParent(transform, true);
+                item.gameObject.SetActive(true);
+                Bounds weedBounds = item.PlantingBounds(Quaternion.identity);
+                item.transform.position -= Vector3.up * weedBounds.min.y;
+                foreach (var collider in item.GetComponentsInChildren<Collider>(true)) collider.enabled = true;
+                var weedBody = item.GetComponent<Rigidbody>();
+                if (weedBody != null) { weedBody.isKinematic = true; weedBody.useGravity = false; }
+                SetMessage("Weed planted. It stays unchanged; press E to pick it up again.");
+                return true;
+            }
             if (item.GrowthProfile == null) item.SetGrowthProfile(ProfileFor(item.Kind));
             EnsureMaterials();
             Vector3 size = item.transform.lossyScale;

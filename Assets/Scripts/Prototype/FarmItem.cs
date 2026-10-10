@@ -9,7 +9,8 @@ namespace WhatTheFarm.Prototype
         Tool,
         WateringCan,
         Curio,
-        Corpse
+        Corpse,
+        Weed
     }
 
     public sealed class FarmItem : MonoBehaviour
@@ -27,6 +28,9 @@ namespace WhatTheFarm.Prototype
         [SerializeField] private Vector3 originalScale;
         [SerializeField] private bool hasBeenPlanted;
         private void Awake() => SetLooseCollision();
+        private FarmPlot weedPlot;
+        public bool IsPlantedWeed => weedPlot != null;
+        public void MarkWeedPlanted(FarmPlot plot) { weedPlot = plot; MarkPlanted(); }
         public bool HasBeenPlanted => hasBeenPlanted;
         public bool CanUseTool => GetComponent<GrowableTool>() == null || hasBeenPlanted;
         // Measure the visible model in its planted orientation, not its pose in the player's hand.
@@ -106,6 +110,7 @@ namespace WhatTheFarm.Prototype
         public void OwnMaterials(System.Collections.Generic.IEnumerable<Material> materials) => ownedMaterials.AddRange(materials);
         private void OnDestroy()
         {
+            weedPlot?.ClearWeed(this);
             foreach (var material in ownedMaterials)
             {
                 if (material == null) continue;
@@ -117,6 +122,8 @@ namespace WhatTheFarm.Prototype
 
         public void MarkHeld()
         {
+            weedPlot?.ClearWeed(this);
+            weedPlot = null;
             WasThrown = false;
             System.Action refill = refillStock;
             refillStock = null;
@@ -126,7 +133,7 @@ namespace WhatTheFarm.Prototype
 
         public bool ClaimSale()
         {
-            if (!WasThrown || IsSold || GetComponent<FleeingCrop>() != null) return false;
+            if (!WasThrown || IsSold || IsPlantedWeed || GetComponent<FleeingCrop>() != null) return false;
             Rigidbody body = GetComponent<Rigidbody>();
             if (body == null || body.isKinematic) return false;
             IsSold = true;
@@ -145,6 +152,7 @@ namespace WhatTheFarm.Prototype
                     ItemKind.Produce => "Crop",
                     ItemKind.Tool => GetComponent<GrowableTool>() != null ? (CanUseTool ? "Shovel" : "Shovel Head") : "Hoe",
                     ItemKind.WateringCan => "Watering Can",
+                    ItemKind.Weed => "Weed",
                     _ => "Stone"
                 };
                 return Generation > 0 ? $"{name} +{Generation}" : name;
